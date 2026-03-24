@@ -1,0 +1,171 @@
+name: Build & Deploy (Vite + Nest + Prisma)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Build frontend (Vite)
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+          test -d dist
+
+      - name: Pack frontend artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          tar -czf artifacts/frontend.tgz -C frontend dist
+          ls -lah artifacts/frontend.tgz
+
+      - name: Build backend (Nest + Prisma)
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npx prisma generate
+          npm run build
+
+      - name: Pack backend artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          tar -czf artifacts/backend.tgz \
+            -C backend \
+            dist prisma package.json package-lock.json
+          ls -lah artifacts/backend.tgz
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-bundles
+          path: artifacts/*.tgz
+
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-bundles
+          path: artifacts
+
+      - name: Upload bundles to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          source: "artifacts/*.tgz"
+          target: "/tmp/vpdm_deploy"
+
+      - name: Deploy + Prisma migrate + PM2 restart
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            set -euo pipefail
+
+            APP="/home/${{ secrets.SERVER_USER }}/apps/vpdm-task-manager"
+            FRONT_WEB="/var/www/html/vpdm-task-manager"
+            BACK="$APP/backend"
+            BKP="$APP/backups"
+            TS="$(date +%Y%m%d_%H%M%S)"
+
+            mkdir -p "$APP" "$BACK" "$BKP" "$FRONT_WEB"
+
+            echo "=== Backup current deployment ==="
+            [ -d "$FRONT_WEB" ] && tar -czf "$BKP/frontend_$TS.tgz" -C /var/www/html vpdm-task-manager || true
+            [ -d "$BACK" ] && tar -czf "$BKP/backend_$TS.tgz" -C "$APP" backend || true
+
+            echo "=== Deploy frontend static files ==="
+            rm -rf "$FRONT_WEB"/*
+            rm -rf /tmp/vpdm_deploy/extract_frontend
+            mkdir -p /tmp/vpdm_deploy/extract_frontend
+            tar -xzf /tmp/vpdm_deploy/artifacts/frontend.tgz -C /tmp/vpdm_deploy/extract_frontend
+            cp -r /tmp/vpdm_deploy/extract_frontend/dist/. "$FRONT_WEB/"
+
+            echo "=== Deploy backend (preserve .env) ==="
+            if [ -f "$BACK/.env" ]; then
+              cp "$BACK/.env" /tmp/vpdm_backend.env
+            fi
+
+            rm -rf "$BACK"/*
+            tar -xzf /tmp/vpdm_deploy/artifacts/backend.tgz -C "$BACK"
+
+            if [ -f /tmp/vpdm_backend.env ]; then
+              mv /tmp/vpdm_backend.env "$BACK/.env"
+              chmod 600 "$BACK/.env"
+            fi
+
+            echo "=== Install backend production dependencies ==="
+            cd "$BACK"
+            npm ci --omit=dev
+            npx prisma generate
+
+            if [ ! -f "$BACK/.env" ]; then
+              echo "ERROR: $BACK/.env not found. Create it once on the server."
+              exit 1
+            fi
+
+            set -a
+            source "$BACK/.env"
+            set +a
+
+            echo "=== Run Prisma migrate deploy ==="
+            npx prisma migrate deploy
+
+            echo "=== Start/restart backend with PM2 ==="
+            command -v pm2 >/dev/null 2>&1 || (echo "ERROR: pm2 not installed" && exit 1)
+
+            if pm2 describe vpdm-task-api >/dev/null 2>&1; then
+              pm2 restart vpdm-task-api --update-env
+            else
+              pm2 start dist/main.js --name vpdm-task-api
+            fi
+            pm2 save
+
+            echo "=== Health check (NestJS) ==="
+            API_PORT="${PORT:-3001}"
+            for i in 1 2 3; do
+              if curl -sS -I "http://127.0.0.1:${API_PORT}/api" >/dev/null; then
+                echo "Backend health check OK"
+                exit 0
+              fi
+              echo "Backend check failed ($i/3), retrying in 2s..."
+              sleep 2
+            done
+
+            echo "Backend health check failed after retries"
+            exit 1
