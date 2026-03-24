@@ -53,3 +53,10 @@ export async function apiGetBlob(path: string): Promise<Blob> {
   if (!res.ok) throw new Error(await readError(res));
   return res.blob();
 }
+
+/** GET plain text/HTML with auth cookies. */
+export async function apiGetText(path: string): Promise<string> {
+  const res = await fetch(`${BASE}${path}`, { ...fetchOpts, method: "GET" });
+  if (!res.ok) throw new Error(await readError(res));
+  return res.text();
+}

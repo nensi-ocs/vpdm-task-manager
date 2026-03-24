@@ -40,10 +40,15 @@ const EXCEL_ROW2_TRACK_LABELS = [
   "Flipkart Audit Client ",
 ] as const;
 
-/** Match `Daily Task .xlsx` theme/tint fills */
-const THEME_TINT_LIGHT = 0.7999816888943144;
-const THEME_TINT_FLIP_NEW = 0.8999908444471572;
-const THEME_TINT_SUBHEADER = -0.0999786370433668;
+/** User-requested solid palette */
+const COLOR_VPDM = "CAEDFB";
+const COLOR_ROLE_AND_SELECTED_TRACKS = "FBE2D5";
+const COLOR_AMAZON_NEW_CLIENT = "C1F0C8";
+const COLOR_AMAZON_AUDIT = "F2CEEF";
+const COLOR_FLIPKART_CLIENT_FOLLOWUP = "DAF2D0";
+const COLOR_FLIPKART_NEW_CLIENT = "DAE9F8";
+const COLOR_HEADERS = "D0D0D0";
+const COLOR_COMMENTS_AND_CATEGORY = "DAF2D0";
 
 /** Merged F:H + tick E, merged J:P + tick I — same as reference workbook */
 const COMMENT_PAIR_ROWS = 9;
@@ -58,12 +63,11 @@ const COMMENT_LINE_DEFAULTS = [
 
 const LAST_COL = 16;
 
-function fillThemeSolid(cell: ExcelJS.Cell, theme: number, tint: number): void {
-  /* Excel theme + tint (see `Daily Task .xlsx`); exceljs typings omit tint/indexed */
+function fillHexSolid(cell: ExcelJS.Cell, rgbHex: string): void {
   cell.fill = {
     type: "pattern",
     pattern: "solid",
-    fgColor: { theme, tint } as unknown as ExcelJS.Color,
+    fgColor: { argb: `FF${rgbHex.toUpperCase()}` } as unknown as ExcelJS.Color,
     bgColor: { indexed: 64 } as unknown as ExcelJS.Color,
   };
 }
@@ -266,6 +270,10 @@ function fillRowFollowup(
       ws.getCell(r, nameCol).value = "";
       ws.getCell(r, tickCol).value = TICK_EMPTY;
     }
+    ws.getCell(r, tickCol).alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
     applyThinBorder(ws.getCell(r, tickCol));
     applyThinBorder(ws.getCell(r, nameCol));
   }
@@ -281,14 +289,14 @@ function applyColumnWidths(ws: ExcelJS.Worksheet): void {
   }
 }
 
-/** Row 2 track pair theme fills — same order as `Daily Task .xlsx` */
-const TRACK_HEADER_THEMES: { theme: number; tint: number }[] = [
-  { theme: 5, tint: THEME_TINT_LIGHT },
-  { theme: 6, tint: THEME_TINT_LIGHT },
-  { theme: 8, tint: THEME_TINT_LIGHT },
-  { theme: 9, tint: THEME_TINT_LIGHT },
-  { theme: 3, tint: THEME_TINT_FLIP_NEW },
-  { theme: 5, tint: THEME_TINT_LIGHT },
+/** Row 2 track colors in VPDM_TRACKS order */
+const TRACK_HEADER_HEX: readonly string[] = [
+  COLOR_ROLE_AND_SELECTED_TRACKS, // Amazon Client Followup
+  COLOR_AMAZON_NEW_CLIENT, // Amazon New client Free
+  COLOR_AMAZON_AUDIT, // Amazon Audit Client
+  COLOR_FLIPKART_CLIENT_FOLLOWUP, // Flipkart  Client Followup
+  COLOR_FLIPKART_NEW_CLIENT, // Flipkart New client Free
+  COLOR_ROLE_AND_SELECTED_TRACKS, // Flipkart Audit Client
 ];
 
 /** 1-based column index → Excel column letter (supports A..Z and beyond) */
@@ -312,7 +320,7 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
   for (let c = 1; c <= LAST_COL; c++) {
     const cell = ws.getCell(1, c);
     cell.value = title;
-    fillThemeSolid(cell, 7, THEME_TINT_LIGHT);
+    fillHexSolid(cell, COLOR_VPDM);
     applyThinBorder(cell);
   }
   ws.mergeCells(`A1:${excelColLetter(LAST_COL)}1`);
@@ -326,7 +334,7 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
   ws.mergeCells("A2:C2");
   const role = ws.getCell(2, 1);
   role.value = "Role and Responsibility";
-  fillThemeSolid(role, 5, THEME_TINT_LIGHT);
+  fillHexSolid(role, COLOR_ROLE_AND_SELECTED_TRACKS);
   role.font = { bold: true };
   role.alignment = {
     horizontal: "center",
@@ -335,15 +343,14 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
   applyThinBorder(ws.getCell(2, 1));
   applyThinBorder(ws.getCell(2, 2));
   applyThinBorder(ws.getCell(2, 3));
+  ws.getCell(2, 4).value = "";
+  applyThinBorder(ws.getCell(2, 4));
 
   for (let ti = 0; ti < VPDM_TRACKS.length; ti++) {
     const c0 = 5 + 2 * ti;
     const c1 = c0 + 1;
     const label = EXCEL_ROW2_TRACK_LABELS[ti] ?? VPDM_TRACKS[ti];
-    const { theme, tint } = TRACK_HEADER_THEMES[ti] ?? {
-      theme: 5,
-      tint: THEME_TINT_LIGHT,
-    };
+    const rgbHex = TRACK_HEADER_HEX[ti] ?? COLOR_ROLE_AND_SELECTED_TRACKS;
     try {
       ws.mergeCells(2, c0, 2, c1);
     } catch {
@@ -351,7 +358,7 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
     }
     const mc = ws.getCell(2, c0);
     mc.value = label;
-    fillThemeSolid(mc, theme, tint);
+    fillHexSolid(mc, rgbHex);
     mc.font = { bold: true, size: 10 };
     mc.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     applyThinBorder(mc);
@@ -363,7 +370,7 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
   ws.getCell(3, 3).value = "Operational Team";
   for (const c of [1, 2, 3]) {
     const cell = ws.getCell(3, c);
-    fillThemeSolid(cell, 9, THEME_TINT_LIGHT);
+    fillHexSolid(cell, COLOR_HEADERS);
     cell.font = { bold: true };
     cell.alignment = { horizontal: "center", vertical: "middle" };
     applyThinBorder(cell);
@@ -390,7 +397,7 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
     ws.getCell(3, nameCol).value = r3Pair[i * 2 + 1];
     for (const c of [tickCol, nameCol]) {
       const cell = ws.getCell(3, c);
-      fillThemeSolid(cell, 2, THEME_TINT_SUBHEADER);
+      fillHexSolid(cell, COLOR_HEADERS);
       cell.font = { bold: true, size: 10 };
       cell.alignment = { horizontal: "center", vertical: "middle" };
       applyThinBorder(cell);
@@ -462,6 +469,7 @@ function writeBlankRowAboveComments(ws: ExcelJS.Worksheet, r: number): void {
 
 function writeCommentsBlock(ws: ExcelJS.Worksheet, headerRow: number): void {
   const h = headerRow;
+  ws.getRow(h).height = 18;
 
   for (const c of [1, 2, 3, 4]) {
     const cell = ws.getCell(h, c);
@@ -486,7 +494,7 @@ function writeCommentsBlock(ws: ExcelJS.Worksheet, headerRow: number): void {
 
   const leftHead = ws.getCell(h, 6);
   leftHead.value = "Comments";
-  fillThemeSolid(leftHead, 9, THEME_TINT_LIGHT);
+  fillHexSolid(leftHead, COLOR_COMMENTS_AND_CATEGORY);
   leftHead.font = { bold: true };
   leftHead.alignment = { horizontal: "center", vertical: "middle" };
   applyThinBorder(leftHead);
@@ -495,7 +503,7 @@ function writeCommentsBlock(ws: ExcelJS.Worksheet, headerRow: number): void {
 
   const rightHead = ws.getCell(h, 10);
   rightHead.value = "Comments";
-  fillThemeSolid(rightHead, 9, THEME_TINT_LIGHT);
+  fillHexSolid(rightHead, COLOR_COMMENTS_AND_CATEGORY);
   rightHead.font = { bold: true };
   rightHead.alignment = { horizontal: "center", vertical: "middle" };
   for (let c = 10; c <= 16; c++) {
@@ -508,6 +516,148 @@ function writeCommentsBlock(ws: ExcelJS.Worksheet, headerRow: number): void {
       i < COMMENT_LINE_DEFAULTS.length ? COMMENT_LINE_DEFAULTS[i]! : "";
     writeCommentDataRow(ws, r, lt, "");
   }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function colLettersToNumber(col: string): number {
+  let n = 0;
+  for (const ch of col.toUpperCase()) {
+    n = n * 26 + (ch.charCodeAt(0) - 64);
+  }
+  return n;
+}
+
+function parseA1Range(a1: string): {
+  r1: number;
+  c1: number;
+  r2: number;
+  c2: number;
+} | null {
+  const m = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i.exec(a1);
+  if (!m) return null;
+  return {
+    c1: colLettersToNumber(m[1]),
+    r1: Number(m[2]),
+    c2: colLettersToNumber(m[3]),
+    r2: Number(m[4]),
+  };
+}
+
+function borderCssSide(b: ExcelJS.Border | undefined): string {
+  if (!b?.style) return "none";
+  if (b.style === "medium") return "2px solid #000";
+  return "1px solid #000";
+}
+
+function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): string {
+  const merges = ws.model.merges ?? [];
+  const mergeByMaster = new Map<string, { rowSpan: number; colSpan: number }>();
+  const mergedCovered = new Set<string>();
+
+  for (const m of merges) {
+    const parsed = parseA1Range(m);
+    if (!parsed) continue;
+    const { r1, c1, r2, c2 } = parsed;
+    mergeByMaster.set(`${r1}:${c1}`, {
+      rowSpan: r2 - r1 + 1,
+      colSpan: c2 - c1 + 1,
+    });
+    for (let r = r1; r <= r2; r++) {
+      for (let c = c1; c <= c2; c++) {
+        if (r === r1 && c === c1) continue;
+        mergedCovered.add(`${r}:${c}`);
+      }
+    }
+  }
+
+  const lines: string[] = [];
+  lines.push("<!doctype html>");
+  lines.push("<html><head><meta charset=\"utf-8\" />");
+  lines.push(`<title>${escapeHtml(title)}</title>`);
+  lines.push("<style>");
+  lines.push("@page { size: A4 landscape; margin: 10mm; }");
+  lines.push("body { font-family: Arial, sans-serif; margin: 0; background:#fff; color:#000; }");
+  lines.push("table { border-collapse: collapse; width: 100%; table-layout: fixed; }");
+  lines.push("td { font-size: 12px; padding: 2px 4px; vertical-align: middle; word-wrap: break-word; background:#fff; color:#000; }");
+  lines.push("@media print { .no-print { display: none; } }");
+  lines.push("</style></head><body>");
+  lines.push("<div class=\"no-print\" style=\"margin:8px 0;\">");
+  lines.push("<button onclick=\"window.print()\">Print</button>");
+  lines.push("</div>");
+  lines.push("<table>");
+
+  const maxRow = ws.rowCount;
+  const maxCol = LAST_COL;
+  for (let r = 1; r <= maxRow; r++) {
+    const rowHeight = ws.getRow(r).height;
+    const trStyle =
+      typeof rowHeight === "number" && Number.isFinite(rowHeight)
+        ? ` style="height:${Math.round(rowHeight * 1.333)}px;"`
+        : "";
+    lines.push(`<tr${trStyle}>`);
+    for (let c = 1; c <= maxCol; c++) {
+      const key = `${r}:${c}`;
+      if (mergedCovered.has(key)) continue;
+      const cell = ws.getCell(r, c);
+      const merge = mergeByMaster.get(key);
+      const attrs: string[] = [];
+      if (merge?.rowSpan && merge.rowSpan > 1) attrs.push(`rowspan="${merge.rowSpan}"`);
+      if (merge?.colSpan && merge.colSpan > 1) attrs.push(`colspan="${merge.colSpan}"`);
+
+      const b = cell.border as {
+        top?: ExcelJS.Border;
+        right?: ExcelJS.Border;
+        bottom?: ExcelJS.Border;
+        left?: ExcelJS.Border;
+      };
+      const styles: string[] = [];
+      styles.push(`border-top:${borderCssSide(b?.top)}`);
+      styles.push(`border-right:${borderCssSide(b?.right)}`);
+      styles.push(`border-bottom:${borderCssSide(b?.bottom)}`);
+      styles.push(`border-left:${borderCssSide(b?.left)}`);
+      styles.push("background-color:#fff");
+      styles.push("color:#000");
+      const fill = cell.fill as
+        | undefined
+        | { type?: string; pattern?: string; fgColor?: { argb?: string } };
+      const argb = fill?.fgColor?.argb;
+      if (fill?.type === "pattern" && fill?.pattern === "solid" && argb) {
+        const hex = argb.slice(-6);
+        styles.push(`background-color:#${hex}`);
+      }
+      if (cell.alignment?.horizontal) styles.push(`text-align:${cell.alignment.horizontal}`);
+      if (cell.alignment?.vertical) styles.push(`vertical-align:${cell.alignment.vertical}`);
+      if (cell.alignment?.wrapText) styles.push("white-space: pre-wrap");
+      if (cell.font?.bold) styles.push("font-weight:700");
+      if (typeof cell.font?.size === "number") styles.push(`font-size:${cell.font.size}px`);
+
+      let text = "";
+      if (cell.value == null) text = "";
+      else if (typeof cell.value === "object") {
+        if ("richText" in cell.value && Array.isArray(cell.value.richText)) {
+          text = cell.value.richText.map((p) => p.text).join("");
+        } else if ("text" in cell.value && typeof cell.value.text === "string") {
+          text = cell.value.text;
+        } else {
+          text = String(cell.text ?? "");
+        }
+      } else {
+        text = String(cell.value);
+      }
+      lines.push(`<td ${attrs.join(" ")} style="${styles.join(";")}">${escapeHtml(text)}</td>`);
+    }
+    lines.push("</tr>");
+  }
+  lines.push("</table></body></html>");
+  return lines.join("");
 }
 
 @Injectable()
@@ -566,12 +716,14 @@ export class DailySheetExportService {
       ws.mergeCells(currentRow, 1, currentRow, 3);
       const catCell = ws.getCell(currentRow, 1);
       catCell.value = sec.name;
-      fillThemeSolid(catCell, 9, THEME_TINT_LIGHT);
+      fillHexSolid(catCell, COLOR_COMMENTS_AND_CATEGORY);
       catCell.font = { bold: true };
       catCell.alignment = { horizontal: "center", vertical: "middle" };
       applyThinBorder(catCell);
       applyThinBorder(ws.getCell(currentRow, 2));
       applyThinBorder(ws.getCell(currentRow, 3));
+      ws.getCell(currentRow, 4).value = "";
+      applyThinBorder(ws.getCell(currentRow, 4));
       fillRowFollowup(
         ws,
         currentRow,
@@ -608,6 +760,8 @@ export class DailySheetExportService {
               : { horizontal: "center", vertical: "middle" };
           applyThinBorder(cell);
         }
+        ws.getCell(currentRow, 4).value = "";
+        applyThinBorder(ws.getCell(currentRow, 4));
 
         fillRowFollowup(
           ws,
@@ -630,5 +784,15 @@ export class DailySheetExportService {
 
     const buf = await wb.xlsx.writeBuffer();
     return Buffer.from(buf);
+  }
+
+  async buildPrintHtmlForUser(userId: string, isoDate: string): Promise<string> {
+    const buf = await this.buildWorkbookForUser(userId, isoDate);
+    const wb = new ExcelJS.Workbook();
+    await (wb.xlsx as unknown as { load: (data: unknown) => Promise<unknown> }).load(
+      buf
+    );
+    const ws = wb.worksheets[0];
+    return buildPrintHtmlFromWorksheet(ws, `VPDM Daily Task ${isoDate}`);
   }
 }

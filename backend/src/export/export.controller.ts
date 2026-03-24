@@ -53,4 +53,19 @@ export class ExportController {
     );
     res.send(buf);
   }
+
+  @Get("daily-sheet-print")
+  async printDailySheet(
+    @CurrentUser() user: RequestUser,
+    @Query("date") date: string | undefined,
+    @Res() res: Response
+  ) {
+    const iso = date?.trim() || todayIsoKolkata();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      throw new BadRequestException("date must be YYYY-MM-DD");
+    }
+    const html = await this.dailySheetExport.buildPrintHtmlForUser(user.userId, iso);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  }
 }

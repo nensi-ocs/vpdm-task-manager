@@ -322,6 +322,22 @@ export function TaskBoard() {
     }
   }
 
+  async function printDailySheetLikeExport() {
+    try {
+      const url = `/api/export/daily-sheet-print?date=${encodeURIComponent(
+        selectedDateIso
+      )}`;
+      const win = window.open(url, "_blank", "noopener,noreferrer");
+      if (!win) {
+        alert("Popup blocked. Please allow popups and try again.");
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : "Print failed");
+    }
+  }
+
   if (!user) {
     return null;
   }
@@ -347,7 +363,9 @@ export function TaskBoard() {
             Excel
           </button>
           <button className="btn ghost sm" onClick={() => void reload()}>Reset</button>
-          <button className="btn primary sm" onClick={() => window.print()}>Print</button>
+          <button className="btn primary sm" onClick={() => void printDailySheetLikeExport()}>
+            Print
+          </button>
         </div>
       </header>
 
