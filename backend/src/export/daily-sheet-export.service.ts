@@ -54,12 +54,7 @@ const COLOR_COMMENTS_AND_CATEGORY = "DAF2D0";
 const COMMENT_PAIR_ROWS = 9;
 
 /** First four comment lines from `Daily Task .xlsx` (left F:H only; J:P empty like file) */
-const COMMENT_LINE_DEFAULTS = [
-  "ANCS Acupressure followup",
-  "Grinish followup",
-  "IT Team Task ",
-  "Porclean meeting",
-] as const;
+const COMMENT_LINE_DEFAULTS = [] as const;
 
 const LAST_COL = 16;
 
@@ -583,26 +578,23 @@ function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): stri
   lines.push("<html><head><meta charset=\"utf-8\" />");
   lines.push(`<title>${escapeHtml(title)}</title>`);
   lines.push("<style>");
-  lines.push("@page { size: A4 landscape; margin: 10mm; }");
+  lines.push("@page { size: A4 landscape; margin: 6mm; }");
   lines.push("body { font-family: Arial, sans-serif; margin: 0; background:#fff; color:#000; }");
-  lines.push("table { border-collapse: collapse; width: 100%; table-layout: fixed; }");
-  lines.push("td { font-size: 12px; padding: 2px 4px; vertical-align: middle; word-wrap: break-word; background:#fff; color:#000; }");
+  lines.push("#print-root { width: 100%; }");
+  lines.push("#sheet-wrap { transform-origin: top left; width: max-content; }");
+  lines.push("table { border-collapse: collapse; table-layout: fixed; }");
+  lines.push("td { font-size: 11px; padding: 1px 3px; vertical-align: middle; word-wrap: break-word; background:#fff; color:#000; }");
   lines.push("@media print { .no-print { display: none; } }");
   lines.push("</style></head><body>");
   lines.push("<div class=\"no-print\" style=\"margin:8px 0;\">");
   lines.push("<button onclick=\"window.print()\">Print</button>");
   lines.push("</div>");
-  lines.push("<table>");
+  lines.push("<div id=\"print-root\"><div id=\"sheet-wrap\"><table>");
 
   const maxRow = ws.rowCount;
   const maxCol = LAST_COL;
   for (let r = 1; r <= maxRow; r++) {
-    const rowHeight = ws.getRow(r).height;
-    const trStyle =
-      typeof rowHeight === "number" && Number.isFinite(rowHeight)
-        ? ` style="height:${Math.round(rowHeight * 1.333)}px;"`
-        : "";
-    lines.push(`<tr${trStyle}>`);
+    lines.push("<tr>");
     for (let c = 1; c <= maxCol; c++) {
       const key = `${r}:${c}`;
       if (mergedCovered.has(key)) continue;
@@ -656,7 +648,29 @@ function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): stri
     }
     lines.push("</tr>");
   }
-  lines.push("</table></body></html>");
+  lines.push("</table></div></div>");
+  lines.push("<script>");
+  lines.push("(function(){");
+  lines.push("  function fitOnePage(){");
+  lines.push("    var wrap=document.getElementById('sheet-wrap');");
+  lines.push("    if(!wrap) return;");
+  lines.push("    wrap.style.transform='scale(1)';");
+  lines.push("    var pageW = 1122; var pageH = 793;"); // A4 landscape at ~96dpi
+  lines.push("    var margin = 24;");
+  lines.push("    var targetW = pageW - margin;");
+  lines.push("    var targetH = pageH - margin;");
+  lines.push("    var rect = wrap.getBoundingClientRect();");
+  lines.push("    if(!rect.width || !rect.height) return;");
+  lines.push("    var scaleW = targetW / rect.width;");
+  lines.push("    var scaleH = targetH / rect.height;");
+  lines.push("    var scale = Math.min(scaleW, scaleH, 1);");
+  lines.push("    wrap.style.transform='scale(' + scale + ')';");
+  lines.push("  }");
+  lines.push("  window.addEventListener('load', fitOnePage);");
+  lines.push("  window.addEventListener('beforeprint', fitOnePage);");
+  lines.push("})();");
+  lines.push("</script>");
+  lines.push("</body></html>");
   return lines.join("");
 }
 
@@ -732,7 +746,7 @@ export class DailySheetExportService {
         completedFuIds
       );
       dataRowIndex += 1;
-      ws.getRow(currentRow).height = 20;
+      ws.getRow(currentRow).height = 18;
       currentRow += 1;
 
       const rowsToWrite: (TaskSeries | null)[] =
