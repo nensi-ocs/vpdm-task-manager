@@ -1,0 +1,19 @@
+{
+  "name": "daily-task",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n web,api -c blue,magenta \"npm run dev -w daily-task-frontend\" \"npm run dev -w daily-task-backend\"",
+    "build": "npm run build -w daily-task-frontend",
+    "preview": "npm run preview -w daily-task-frontend",
+    "start:api": "npm run start -w daily-task-backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

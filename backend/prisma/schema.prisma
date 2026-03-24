@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  taskSeries   TaskSeries[]
+  categories   Category[]
+  followupClients FollowupClient[]
+
+  @@map("users")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name], map: "uq_categories_user_name")
+  @@index([userId], map: "idx_categories_user_id")
+  @@map("categories")
+}
+
+model FollowupClient {
+  id         String   @id @default(uuid()) @db.Uuid
+  track      String   @db.VarChar(120)
+  clientName String   @map("client_name") @db.VarChar(200)
+  owner      String?  @db.VarChar(120)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions FollowupCompletion[]
+
+  @@unique([userId, track, clientName], map: "uq_followup_user_track_client")
+  @@index([userId], map: "idx_followup_user_id")
+  @@index([track], map: "idx_followup_track")
+  @@map("followup_clients")
+}
+
+model FollowupCompletion {
+  id Int @id @default(autoincrement())
+
+  followupClientId String @map("followup_client_id") @db.Uuid
+  followupClient FollowupClient @relation(fields: [followupClientId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([followupClientId, date], map: "uq_followup_completions_client_date")
+  @@index([date], map: "idx_followup_completions_date")
+  @@index([followupClientId], map: "idx_followup_completions_client_id")
+  @@map("followup_completions")
+}
+
+model TaskSeries {
+  /// Integer primary key used by the app.
+  id Int @id @default(autoincrement())
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title    String    @db.VarChar(200)
+  notes    String    @default("") @db.Text
+  priority String    @db.VarChar(20)
+  frequency String  @default("daily") @db.VarChar(20)
+
+  /// Weekly recurrence: "Sunday"..."Saturday"
+  repeatWeekday String? @map("repeat_weekday") @db.VarChar(9)
+
+  /// Monthly recurrence: 1-31
+  repeatDayOfMonth Int? @map("repeat_day_of_month")
+
+  startDate DateTime @default(dbgenerated("CURRENT_DATE")) @map("start_date") @db.Date
+  endDate   DateTime? @map("end_date") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// VPDM daily sheet: section / role (e.g. Office Operational Task)
+  category String? @db.VarChar(120)
+
+  @@index([createdAt], map: "idx_task_series_created_at")
+  @@index([frequency], map: "idx_task_series_frequency")
+  @@index([userId], map: "idx_task_series_user_id")
+  @@index([repeatWeekday], map: "idx_task_series_repeat_weekday")
+  @@index([repeatDayOfMonth], map: "idx_task_series_repeat_day_of_month")
+  @@map("task_series")
+
+  completions TaskCompletion[]
+}
+
+model TaskCompletion {
+  id Int @id @default(autoincrement())
+
+  taskId Int @map("task_id")
+  taskSeries TaskSeries @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([taskId, date], map: "uq_task_completions_task_date")
+  @@index([date], map: "idx_task_completions_date")
+  @@index([taskId], map: "idx_task_completions_task_id")
+  @@map("task_completions")
+}

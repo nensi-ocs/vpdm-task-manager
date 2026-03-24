@@ -1,0 +1,39 @@
+.followup-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 15, 25, 0.56);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.followup-modal {
+  width: min(96vw, 520px);
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.followup-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.followup-modal-head h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.followup-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+

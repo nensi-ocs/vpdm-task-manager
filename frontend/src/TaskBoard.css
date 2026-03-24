@@ -1,0 +1,251 @@
+.task-board {
+  min-height: 100vh;
+  background: #f6f7fb;
+}
+
+.task-board .vpm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  gap: 1rem;
+}
+
+.task-board .vpm-title {
+  font-size: 1.9rem;
+  font-weight: 800;
+}
+
+.task-board .vpm-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.task-board .top-user-email {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-board .date-picker {
+  height: 36px;
+  padding: 0 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+.task-board .date-picker:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.task-board .vpm-main {
+  padding: 1rem 1.1rem 2rem;
+}
+
+.task-board .banner-error {
+  margin: 0.8rem 1.1rem 0;
+  padding: 0.65rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: 10px;
+}
+
+.task-board .banner-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.task-board .task-section {
+  margin-bottom: 1rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.task-board .section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-board .section-head h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.task-board .section-head h2 span {
+  margin-left: 0.4rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  color: #fff;
+  background: #1f9d67;
+  border-radius: 999px;
+  padding: 0.2rem 0.45rem;
+}
+
+.task-board .task-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.task-board .task-table th,
+.task-board .task-table td {
+  border-bottom: 1px solid #edf1f5;
+  padding: 0.5rem 0.55rem;
+  font-size: 0.88rem;
+  text-align: left;
+}
+
+.task-board .task-table th {
+  color: #7a8597;
+  font-weight: 700;
+}
+
+.task-board .task-table tbody tr.done td {
+  color: #95a0b1;
+  text-decoration: line-through;
+}
+
+.task-board .task-table .actions {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.task-board .empty-row {
+  padding: 1rem;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.task-board .tracker-panel {
+  margin-top: 1rem;
+}
+
+.task-board .tracker-title {
+  margin: 0 0 0.7rem;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.task-board .tracker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.7rem;
+}
+
+.task-board .tracker-card {
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.task-board .tracker-card h3 {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.95rem;
+  background: #d8eee8;
+}
+
+.task-board .tracker-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.task-board .tracker-card li {
+  border-top: 1px solid #edf1f5;
+}
+
+.task-board .tracker-card label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.58rem;
+}
+
+.task-board .tracker-card em {
+  margin-left: auto;
+  color: #8f99ab;
+  font-style: normal;
+  font-size: 0.8rem;
+}
+
+.task-board .tracker-comments {
+  margin: 0;
+  padding: 0.55rem 0.6rem;
+  border-top: 1px solid #edf1f5;
+  color: #8f99ab;
+  font-size: 0.78rem;
+}
+
+.task-board .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 15, 25, 0.56);
+  display: grid;
+  place-items: center;
+  z-index: 20;
+}
+
+.task-board .task-modal {
+  width: min(96vw, 430px);
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.task-board .modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-board .modal-head h3 {
+  margin: 0;
+}
+
+.task-board .modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.task-board .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+}
+
+.task-board .modal-help {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
