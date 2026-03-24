@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiDelete, apiGet, apiSendJson } from "./api";
 import type { Category } from "./types";
+import { toastApiError } from "./toast";
 
 function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : "Something went wrong";
@@ -20,6 +21,7 @@ export function useCategories(userId: string | undefined) {
     } catch (e) {
       setError(errMessage(e));
       setCategories([]);
+      toastApiError(e, "Failed to load categories");
     } finally {
       setLoading(false);
     }

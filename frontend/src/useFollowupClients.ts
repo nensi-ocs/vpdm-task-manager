@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiDelete, apiGet, apiSendJson } from "./api";
 import type { FollowupClient } from "./types";
+import { toastApiError } from "./toast";
 
 function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : "Something went wrong";
@@ -24,6 +25,7 @@ export function useFollowupClients(
     } catch (e) {
       setError(errMessage(e));
       setClients([]);
+      toastApiError(e, "Failed to load followup clients");
     } finally {
       setLoading(false);
     }
@@ -123,6 +125,7 @@ export function useFollowupClients(
       } catch (e) {
         setCompletedClientIds(before);
         setError(errMessage(e));
+        toastApiError(e, "Failed to update followup completion");
       }
     },
     [completedClientIds]

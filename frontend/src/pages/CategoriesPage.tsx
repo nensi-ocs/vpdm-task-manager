@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useCategories } from "../useCategories";
+import { toastApiError, toastSuccess } from "../toast";
 import "./categories-page.css";
 import { PencilLine, Trash2 } from "lucide-react";
 
@@ -23,8 +24,10 @@ export function CategoriesPage() {
     try {
       await addCategory(n);
       setName("");
+      toastSuccess("Category added");
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Failed to add category");
+      toastApiError(err, "Failed to add category");
     } finally {
       setSaving(false);
     }
@@ -40,8 +43,10 @@ export function CategoriesPage() {
       await updateCategory(editingId, n);
       setEditingId(null);
       setEditingName("");
+      toastSuccess("Category updated");
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Failed to update category");
+      toastApiError(err, "Failed to update category");
     } finally {
       setSaving(false);
     }
@@ -143,7 +148,14 @@ export function CategoriesPage() {
                               type="button"
                               className="btn ghost sm table-icon-btn"
                               title="Delete category"
-                              onClick={() => void removeCategory(c.id)}
+                              onClick={async () => {
+                                try {
+                                  await removeCategory(c.id);
+                                  toastSuccess("Category deleted");
+                                } catch (err) {
+                                  toastApiError(err, "Failed to delete category");
+                                }
+                              }}
                             >
                               <Trash2 size={16} aria-hidden="true" />
                             </button>

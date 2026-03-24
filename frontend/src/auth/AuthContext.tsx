@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { apiGet, apiSendJson } from "../api";
+import { toastApiError } from "../toast";
 import type { AuthUser } from "./types";
 
 type AuthContextValue = {
@@ -62,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await apiSendJson("/auth/logout", "POST");
+    } catch (err) {
+      toastApiError(err, "Logout failed");
     } finally {
       setUser(null);
     }

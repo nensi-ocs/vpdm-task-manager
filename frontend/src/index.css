@@ -91,6 +91,17 @@ a:hover {
   box-shadow: var(--shadow);
 }
 
+@media (max-width: 768px) {
+  .panel {
+    padding: 0.95rem;
+    border-radius: 12px;
+  }
+
+  .btn {
+    min-height: 36px;
+  }
+}
+
 .field {
   display: flex;
   flex-direction: column;

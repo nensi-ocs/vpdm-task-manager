@@ -89,6 +89,10 @@
 }
 
 @media (max-width: 680px) {
+  .categories-page {
+    padding: 0.8rem;
+  }
+
   .category-title,
   .saved-title {
     font-size: 1.55rem;
@@ -96,5 +100,9 @@
 
   .category-add-form .input {
     min-width: 100%;
+  }
+
+  .categories-table {
+    min-width: 560px;
   }
 }

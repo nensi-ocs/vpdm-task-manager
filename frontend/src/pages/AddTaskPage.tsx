@@ -4,6 +4,7 @@ import type { Frequency, Priority } from "../types";
 import type { Task } from "../types";
 import { useCategories } from "../useCategories";
 import { useTasks } from "../useTasks";
+import { toastApiError, toastSuccess } from "../toast";
 import "./add-task-page.css";
 
 const WEEKDAYS = [
@@ -92,8 +93,10 @@ export function AddTaskPage() {
 
       await addTask(payload);
       setForm(emptyForm(form.frequency));
+      toastSuccess("Task added");
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Failed to add task");
+      toastApiError(err, "Failed to add task");
     }
   }
 

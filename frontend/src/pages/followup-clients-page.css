@@ -1,3 +1,85 @@
+.followup-page {
+  padding: 1rem 1.1rem 2rem;
+}
+
+.followup-intro-panel {
+  margin-bottom: 1rem;
+}
+
+.followup-title {
+  margin: 0;
+}
+
+.followup-subtitle {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+}
+
+.followup-add-form {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1.5fr auto;
+  gap: 0.5rem;
+}
+
+.followup-add-form > * {
+  min-width: 0;
+}
+
+.followup-section-title {
+  margin-top: 0;
+}
+
+.followup-track-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.7rem;
+}
+
+.followup-track-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.followup-track-head {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  background: #d8eee8;
+}
+
+.followup-empty {
+  margin: 0;
+  padding: 0.65rem 0.7rem;
+  color: var(--text-muted);
+}
+
+.followup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.followup-list-item {
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.followup-client-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.followup-client-owner {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 .followup-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -35,5 +117,51 @@
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.3rem;
+}
+
+@media (max-width: 980px) {
+  .followup-add-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .followup-page {
+    padding: 0.8rem;
+  }
+
+  .followup-title {
+    font-size: 1.35rem;
+  }
+
+  .followup-track-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .followup-add-form {
+    grid-template-columns: 1fr;
+  }
+
+  .followup-add-form .btn {
+    width: 100%;
+  }
+
+  .followup-list-item {
+    flex-wrap: wrap;
+  }
+
+  .followup-client-owner {
+    margin-left: auto;
+  }
+
+  .followup-modal {
+    width: min(98vw, 520px);
+    padding: 0.85rem;
+  }
+
+  .followup-modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
 }
 

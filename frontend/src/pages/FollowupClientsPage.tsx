@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { VPDM_TRACKS } from "../vpdmCatalog";
 import { useFollowupClients } from "../useFollowupClients";
+import { toastApiError, toastSuccess } from "../toast";
 import "./followup-clients-page.css";
 import { PencilLine, Trash2, X } from "lucide-react";
 
@@ -36,8 +37,10 @@ export function FollowupClientsPage() {
       await addClient(track, name, owner.trim() || null);
       setClientName("");
       setOwner("");
+      toastSuccess("Client added");
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Failed to add client");
+      toastApiError(err, "Failed to add client");
     } finally {
       setBusy(false);
     }
@@ -60,8 +63,10 @@ export function FollowupClientsPage() {
       setEditTrack(VPDM_TRACKS[0]);
       setEditClientName("");
       setEditOwner("");
+      toastSuccess("Client updated");
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Failed to update client");
+      toastApiError(err, "Failed to update client");
     } finally {
       setBusy(false);
     }
@@ -84,16 +89,13 @@ export function FollowupClientsPage() {
   }
 
   return (
-    <main style={{ padding: "1rem 1.1rem 2rem" }}>
-      <section className="panel" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Client Followup Details</h2>
-        <p style={{ marginTop: 0, color: "var(--text-muted)" }}>
+    <main className="followup-page">
+      <section className="panel followup-intro-panel">
+        <h2 className="followup-title">Client Followup Details</h2>
+        <p className="followup-subtitle">
           Add clients under Amazon/Flipkart followup tracks. Total clients: {total}
         </p>
-        <form
-          onSubmit={(e) => void onSubmit(e)}
-          style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1.5fr auto", gap: "0.5rem" }}
-        >
+        <form onSubmit={(e) => void onSubmit(e)} className="followup-add-form">
           <select className="input" value={track} onChange={(e) => setTrack(e.target.value)}>
             {VPDM_TRACKS.map((t) => (
               <option key={t} value={t}>
@@ -124,38 +126,26 @@ export function FollowupClientsPage() {
       </section>
 
       <section className="panel">
-        <h3 style={{ marginTop: 0 }}>Track-wise Clients</h3>
+        <h3 className="followup-section-title">Track-wise Clients</h3>
         {loading ? (
           <p>Loading...</p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: "0.7rem" }}>
+          <div className="followup-track-grid">
             {VPDM_TRACKS.map((t) => {
               const list = grouped.get(t) ?? [];
               return (
-                <article
-                  key={t}
-                  style={{ border: "1px solid var(--border)", borderRadius: "10px", overflow: "hidden" }}
-                >
-                  <h4 style={{ margin: 0, padding: "0.55rem 0.7rem", background: "#d8eee8" }}>{t}</h4>
+                <article key={t} className="followup-track-card">
+                  <h4 className="followup-track-head">{t}</h4>
                   {list.length === 0 ? (
-                    <p style={{ margin: 0, padding: "0.65rem 0.7rem", color: "var(--text-muted)" }}>
+                    <p className="followup-empty">
                       No clients yet.
                     </p>
                   ) : (
-                    <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                    <ul className="followup-list">
                       {list.map((c) => (
-                        <li
-                          key={c.id}
-                          style={{
-                            borderTop: "1px solid var(--border)",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.45rem",
-                            padding: "0.45rem 0.6rem",
-                          }}
-                        >
-                          <span style={{ flex: 1 }}>{c.clientName}</span>
-                          <span style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
+                        <li key={c.id} className="followup-list-item">
+                          <span className="followup-client-name">{c.clientName}</span>
+                          <span className="followup-client-owner">
                             {c.owner ? `(${c.owner})` : "(-)"}
                           </span>
                           <button
@@ -177,7 +167,14 @@ export function FollowupClientsPage() {
                             type="button"
                             className="btn ghost sm"
                             title="Delete client"
-                            onClick={() => void removeClient(c.id)}
+                            onClick={async () => {
+                              try {
+                                await removeClient(c.id);
+                                toastSuccess("Client deleted");
+                              } catch (err) {
+                                toastApiError(err, "Failed to delete client");
+                              }
+                            }}
                           >
                             <Trash2 size={16} aria-hidden="true" />
                           </button>

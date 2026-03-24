@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { toastApiError, toastSuccess } from "../toast";
 import "./auth-pages.css";
 
 export function RegisterPage() {
@@ -16,14 +17,17 @@ export function RegisterPage() {
     setError(null);
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
+      toastApiError(new Error("Password must be at least 8 characters."));
       return;
     }
     setBusy(true);
     try {
       await register(email.trim(), password);
+      toastSuccess("Registration successful");
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
+      toastApiError(err, "Registration failed");
     } finally {
       setBusy(false);
     }

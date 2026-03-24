@@ -103,3 +103,21 @@
 .auth-footer a:hover {
   text-decoration: underline;
 }
+
+@media (max-width: 560px) {
+  .auth-page {
+    padding: 0.9rem;
+  }
+
+  .auth-card.panel {
+    max-width: 100%;
+  }
+
+  .auth-brand {
+    margin-bottom: 1rem;
+  }
+
+  .auth-title {
+    font-size: 1.1rem;
+  }
+}

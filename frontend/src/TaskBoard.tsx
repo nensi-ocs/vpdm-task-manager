@@ -5,11 +5,12 @@ import { useCategories } from "./useCategories";
 import { useFollowupClients } from "./useFollowupClients";
 import { useTasks } from "./useTasks";
 import { apiGetBlob } from "./api";
+import { toastApiError, toastSuccess } from "./toast";
 import {
   VPDM_TRACKS,
 } from "./vpdmCatalog";
 import "./TaskBoard.css";
-import { PencilLine, Trash2, X } from "lucide-react";
+import { X } from "lucide-react";
 
 const WEEKDAYS = [
   "Sunday",
@@ -141,7 +142,6 @@ export function TaskBoard() {
     clearError,
     addTask,
     updateTask,
-    removeTask,
     completedTaskIds,
     setTaskCompletionForDate,
   } = useTasks(user?.id, selectedDateIso);
@@ -260,24 +260,6 @@ export function TaskBoard() {
     setModal(createModal(frequency, categoryOptions[0] ?? ""));
   }
 
-  function openEdit(task: Task) {
-    setModal({
-      open: true,
-      mode: "edit",
-      editId: task.id,
-      title: task.title,
-      category: task.category ?? "",
-      frequency: task.frequency,
-      repeatWeekday: isWeekdayOption(task.repeatWeekday)
-        ? task.repeatWeekday
-        : defaultWeekday(),
-      repeatDayOfMonth:
-        typeof task.repeatDayOfMonth === "number"
-          ? String(task.repeatDayOfMonth)
-          : defaultDayOfMonth(),
-    });
-  }
-
   async function submitModal(e: FormEvent) {
     e.preventDefault();
     const title = modal.title.trim();
@@ -295,8 +277,10 @@ export function TaskBoard() {
     };
     if (modal.mode === "create") {
       await addTask(payload);
+      toastSuccess("Task added");
     } else if (modal.editId) {
       await updateTask(modal.editId, payload);
+      toastSuccess("Task updated");
     }
     setModal((prev) => ({ ...prev, open: false }));
   }
@@ -316,9 +300,10 @@ export function TaskBoard() {
       a.download = `VPDM Daily Task ${selectedDateIso.replace(/-/g, "")}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
+      toastSuccess("Excel exported");
     } catch (e) {
       console.error(e);
-      alert(e instanceof Error ? e.message : "Export failed");
+      toastApiError(e, "Export failed");
     }
   }
 
@@ -328,13 +313,16 @@ export function TaskBoard() {
         selectedDateIso
       )}`;
       const win = window.open(url, "_blank", "noopener,noreferrer");
-      if (!win) {
-        alert("Popup blocked. Please allow popups and try again.");
-        return;
-      }
+      // if (!win) {
+      //   toastApiError(
+      //     new Error("Popup blocked. Please allow popups and try again.")
+      //   );
+      //   return;
+      // }
+      toastSuccess("Print view opened");
     } catch (e) {
       console.error(e);
-      alert(e instanceof Error ? e.message : "Print failed");
+      toastApiError(e, "Print failed");
     }
   }
 
@@ -399,14 +387,10 @@ export function TaskBoard() {
           tasks={daily}
           selectedDateIso={selectedDateIso}
           onAdd={openCreate}
-          onEdit={openEdit}
           completedTaskIds={completedTaskIds}
           onToggle={(task, completed) =>
             void setTaskCompletionForDate(task.id, selectedDateIso, completed)
           }
-          onDelete={(task) => {
-            if (confirm("Delete this task?")) void removeTask(task.id);
-          }}
         />
         <TaskSection
           title={sectionTitle("weekly")}
@@ -415,14 +399,10 @@ export function TaskBoard() {
           tasks={weekly}
           selectedDateIso={selectedDateIso}
           onAdd={openCreate}
-          onEdit={openEdit}
           completedTaskIds={completedTaskIds}
           onToggle={(task, completed) =>
             void setTaskCompletionForDate(task.id, selectedDateIso, completed)
           }
-          onDelete={(task) => {
-            if (confirm("Delete this task?")) void removeTask(task.id);
-          }}
         />
         <TaskSection
           title={sectionTitle("monthly")}
@@ -431,14 +411,10 @@ export function TaskBoard() {
           tasks={monthly}
           selectedDateIso={selectedDateIso}
           onAdd={openCreate}
-          onEdit={openEdit}
           completedTaskIds={completedTaskIds}
           onToggle={(task, completed) =>
             void setTaskCompletionForDate(task.id, selectedDateIso, completed)
           }
-          onDelete={(task) => {
-            if (confirm("Delete this task?")) void removeTask(task.id);
-          }}
         />
 
         <section className="panel tracker-panel">
@@ -606,9 +582,7 @@ type TaskSectionProps = {
   selectedDateIso: string;
   completedTaskIds: number[];
   onAdd: (frequency: Frequency) => void;
-  onEdit: (task: Task) => void;
   onToggle: (task: Task, completed: boolean) => void;
-  onDelete: (task: Task) => void;
 };
 
 function TaskSection({
@@ -619,9 +593,7 @@ function TaskSection({
   selectedDateIso,
   completedTaskIds,
   onAdd,
-  onEdit,
   onToggle,
-  onDelete,
 }: TaskSectionProps) {
   return (
     <section className="panel task-section">
@@ -644,7 +616,6 @@ function TaskSection({
               <th>Task</th>
               <th>Date</th>
               <th>Category</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -664,24 +635,6 @@ function TaskSection({
                 <td>{task.title}</td>
                 <td>{displayDate(task, selectedDateIso)}</td>
                 <td>{task.category ?? "-"}</td>
-                <td className="actions">
-                  <button
-                    type="button"
-                    className="btn ghost sm table-icon-btn"
-                    title="Edit"
-                    onClick={() => onEdit(task)}
-                  >
-                    <PencilLine size={16} aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn ghost sm table-icon-btn"
-                    title="Delete"
-                    onClick={() => onDelete(task)}
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>

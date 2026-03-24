@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Task } from "./types";
 import { apiDelete, apiGet, apiSendJson } from "./api";
+import { toastApiError } from "./toast";
 
 function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : "Something went wrong";
@@ -28,6 +29,7 @@ export function useTasks(
     } catch (e) {
       setError(errMessage(e));
       setTasks([]);
+      toastApiError(e, "Failed to load tasks");
     } finally {
       setLoading(false);
     }
@@ -94,6 +96,7 @@ export function useTasks(
     } catch (e) {
       setTasks(previous);
       setError(errMessage(e));
+        toastApiError(e, "Failed to update task");
     }
     },
     []
@@ -106,6 +109,7 @@ export function useTasks(
       setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (e) {
       setError(errMessage(e));
+      toastApiError(e, "Failed to delete task");
     }
   }, []);
 
@@ -128,6 +132,7 @@ export function useTasks(
       } catch (e) {
         setCompletedTaskIds(before);
         setError(errMessage(e));
+        toastApiError(e, "Failed to update task completion");
       }
     },
     [completedTaskIds]

@@ -50,8 +50,21 @@
 }
 
 @media (max-width: 720px) {
+  .add-task-page {
+    padding: 0.8rem;
+  }
+
+  .add-task-title {
+    font-size: 1.35rem;
+  }
+
   .add-task-row {
     grid-template-columns: 1fr;
+  }
+
+  .add-task-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
   }
 }
 

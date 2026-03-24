@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { toastApiError, toastSuccess } from "../toast";
 import "./auth-pages.css";
 
 export function LoginPage() {
@@ -17,9 +18,11 @@ export function LoginPage() {
     setBusy(true);
     try {
       await login(email.trim(), password);
+      toastSuccess("Login successful");
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed");
+      toastApiError(err, "Sign in failed");
     } finally {
       setBusy(false);
     }
