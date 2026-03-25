@@ -17,7 +17,7 @@ sudo mkdir -p /var/www/html/vpdm-task-manager
 sudo chown -R "$USER":"$USER" /var/www/html/vpdm-task-manager
 ```
 
-Create `backend/.env` on the server with real values (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`). While `RUN_ENV_PRISMA=false` in the workflow, deploy skips loading `.env`, Prisma migrate, and the strict API health check so you can ship static files and code first.
+Put real values in `backend/.env` (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`). Until `DATABASE_URL` matches Postgres on the VPS, keep `RUN_PRISMA_MIGRATE=false` in `.github/workflows/main.yml` so deploy skips `prisma migrate deploy` (avoids P1000). Set `RUN_PRISMA_MIGRATE=true` once the DB credentials are correct.
 
 Example (manual):
 
@@ -79,15 +79,14 @@ The workflow has 2 jobs:
    - Builds frontend (`frontend/dist`) and backend (`backend/dist`) in CI.
    - Creates two artifacts: `frontend.tgz` and `backend.tgz`.
 2. **Deploy job**
-   - In `.github/workflows/main.yml`, the remote script sets `RUN_ENV_PRISMA=false` until Postgres and `backend/.env` are ready; then set it to `true` to load `.env`, run `prisma migrate deploy`, and enforce the backend health check.
    - Uploads artifacts to `/tmp/vpdm_deploy` on the VPS.
    - Backs up current deployment files.
    - Deploys frontend to `/var/www/html/vpdm-task-manager`.
-   - Deploys backend to `~/apps/vpdm-task-manager/backend` while preserving `backend/.env`.
-   - Installs backend production dependencies (`npm ci --omit=dev`).
-   - Runs `prisma migrate deploy`.
+   - Deploys backend to `~/apps/vpdm-task-manager/backend` (`.env` is included in the backend artifact if `backend/.env` exists in the repo at build time).
+   - Installs backend production dependencies (`npm ci --omit=dev`), loads `.env`, then optionally runs `prisma migrate deploy`.
+   - In `.github/workflows/main.yml`, the remote script sets `RUN_PRISMA_MIGRATE=false` by default so deploy does not fail with **P1000** while `DATABASE_URL` still points at wrong credentials. Set `RUN_PRISMA_MIGRATE=true` after Postgres on the VPS matches `DATABASE_URL` in `.env`.
    - Restarts PM2 process `vpdm-task-api`.
-   - Runs backend health check on `http://127.0.0.1:$PORT/api` (`PORT` from backend `.env`, default `3001`).
+   - HTTP health check is currently disabled in the workflow; enable it in the script when the API is stable.
 
 ## 5) SSL (recommended)
 

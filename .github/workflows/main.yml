@@ -99,6 +99,9 @@ jobs:
           script: |
             set -euo pipefail
 
+            # P1000 = wrong DB user/password or Postgres not on localhost. Set true after DATABASE_URL in .env matches VPS Postgres.
+            RUN_PRISMA_MIGRATE=false
+
             APP="/home/${{ secrets.SERVER_USER }}/apps/vpdm-task-manager"
             FRONT_WEB="/var/www/html/vpdm-task-manager"
             BACK="$APP/backend"
@@ -138,8 +141,12 @@ jobs:
             source "$BACK/.env"
             set +a
 
-            echo "=== Run Prisma migrate deploy ==="
-            npx prisma migrate deploy
+            if [ "$RUN_PRISMA_MIGRATE" = true ]; then
+              echo "=== Run Prisma migrate deploy ==="
+              npx prisma migrate deploy
+            else
+              echo "=== Skipping Prisma migrate (RUN_PRISMA_MIGRATE=false). Set true after DATABASE_URL matches VPS Postgres. ==="
+            fi
 
             echo "=== Start/restart backend with PM2 ==="
             command -v pm2 >/dev/null 2>&1 || (echo "ERROR: pm2 not installed" && exit 1)
