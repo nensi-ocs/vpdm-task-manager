@@ -56,7 +56,7 @@ jobs:
           mkdir -p artifacts
           tar -czf artifacts/backend.tgz \
             -C backend \
-            dist prisma package.json package-lock.json .env.example
+            dist prisma package.json package-lock.json
           ls -lah artifacts/backend.tgz
 
       - name: Upload artifacts
@@ -137,14 +137,8 @@ jobs:
             npx prisma generate
 
             if [ ! -f "$BACK/.env" ]; then
-              if [ -f "$BACK/.env.example" ]; then
-                echo "WARNING: No $BACK/.env — creating from .env.example. Edit real secrets on the server if needed."
-                cp "$BACK/.env.example" "$BACK/.env"
-                chmod 600 "$BACK/.env"
-              else
-                echo "ERROR: $BACK/.env missing and no .env.example in bundle. Create $BACK/.env on the server."
-                exit 1
-              fi
+              echo "ERROR: $BACK/.env not found. Create it once on the server."
+              exit 1
             fi
 
             set -a
