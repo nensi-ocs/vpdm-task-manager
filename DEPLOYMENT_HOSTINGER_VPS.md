@@ -68,6 +68,7 @@ In GitHub repo settings, add:
 - `SERVER_HOST` (your server IP/domain)
 - `SERVER_USER` (server username)
 - `SERVER_SSH_KEY` (private key content used by GitHub Actions)
+- `SERVER_SSH_PASSPHRASE` (only if your private key is passphrase-protected; leave unset or empty if the key has no passphrase)
 
 ## 4) How the pipeline deploys
 
