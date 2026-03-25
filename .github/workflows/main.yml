@@ -99,34 +99,44 @@ jobs:
           script: |
             set -euo pipefail
 
-            # P1000 = wrong DB user/password or Postgres not on localhost. Set true after DATABASE_URL in .env matches VPS Postgres.
-            RUN_PRISMA_MIGRATE=false
-
-            # Same layout as jwell_b2b: one app root with frontend / backend / backups
-            ROOT="/var/www/html/vpdm-task-manager"
-            FRONT="$ROOT/frontend"
-            BACK="$ROOT/backend"
-            BKP="$ROOT/backups"
+            # Same layout as jwell_b2b: /var/www/html/<app>/{frontend,backend,backups}
+            APP="/var/www/html/vpdm-task-manager"
+            FRONT="$APP/frontend"
+            BACK="$APP/backend"
+            BKP="$APP/backups"
             TS="$(date +%Y%m%d_%H%M%S)"
 
-            mkdir -p "$ROOT" "$FRONT" "$BACK" "$BKP"
+            # Set true after DATABASE_URL in backend/.env matches Postgres on this VPS
+            RUN_PRISMA_MIGRATE=false
+            # Static SPA via PM2 (same port convention as Vite dev: 5173)
+            FRONT_PORT=5173
+
+            mkdir -p "$FRONT" "$BACK" "$BKP"
 
             echo "=== Backup current deployment ==="
-            [ -d "$FRONT" ] && tar -czf "$BKP/frontend_$TS.tgz" -C "$ROOT" frontend || true
-            [ -d "$BACK" ] && tar -czf "$BKP/backend_$TS.tgz" -C "$ROOT" backend || true
+            [ -d "$FRONT" ] && tar -czf "$BKP/frontend_$TS.tgz" -C "$APP" frontend || true
+            [ -d "$BACK" ] && tar -czf "$BKP/backend_$TS.tgz" -C "$APP" backend || true
 
-            echo "=== Deploy frontend static files ==="
+            echo "=== Deploy frontend (Vite dist → frontend/) ==="
             rm -rf "$FRONT"/*
             rm -rf /tmp/vpdm_deploy/extract_frontend
             mkdir -p /tmp/vpdm_deploy/extract_frontend
             tar -xzf /tmp/vpdm_deploy/artifacts/frontend.tgz -C /tmp/vpdm_deploy/extract_frontend
             cp -r /tmp/vpdm_deploy/extract_frontend/dist/. "$FRONT/"
 
-            echo "=== Deploy backend ==="
+            echo "=== Deploy backend (preserve existing .env on server) ==="
+            if [ -f "$BACK/.env" ]; then
+              cp "$BACK/.env" /tmp/vpdm_backend.env
+            fi
+
             rm -rf "$BACK"/*
             mkdir -p "$BACK"
             tar -xzf /tmp/vpdm_deploy/artifacts/backend.tgz -C "$BACK"
-            [ -f "$BACK/.env" ] && chmod 600 "$BACK/.env" || true
+
+            if [ -f /tmp/vpdm_backend.env ]; then
+              mv /tmp/vpdm_backend.env "$BACK/.env"
+              chmod 600 "$BACK/.env"
+            fi
 
             echo "=== Install backend production dependencies ==="
             cd "$BACK"
@@ -134,7 +144,7 @@ jobs:
             npx prisma generate
 
             if [ ! -f "$BACK/.env" ]; then
-              echo "ERROR: $BACK/.env not found. Create it once on the server."
+              echo "ERROR: $BACK/.env not found. Add it on the server or commit backend/.env for CI to pack."
               exit 1
             fi
 
@@ -146,7 +156,7 @@ jobs:
               echo "=== Run Prisma migrate deploy ==="
               npx prisma migrate deploy
             else
-              echo "=== Skipping Prisma migrate (RUN_PRISMA_MIGRATE=false). Set true after DATABASE_URL matches VPS Postgres. ==="
+              echo "=== Skipping Prisma migrate (RUN_PRISMA_MIGRATE=false) ==="
             fi
 
             echo "=== Start/restart backend with PM2 ==="
@@ -157,15 +167,42 @@ jobs:
             else
               pm2 start dist/main.js --name vpdm-task-api
             fi
+
+            echo "=== Start/restart frontend static server (PM2 + serve) ==="
+            if pm2 describe vpdm-task-web >/dev/null 2>&1; then
+              pm2 restart vpdm-task-web --update-env
+            else
+              pm2 start bash --name vpdm-task-web -- -c "cd \"$FRONT\" && exec npx --yes serve@14 -s . -l $FRONT_PORT"
+            fi
+
             pm2 save
 
-            # Health check disabled for now (uncomment when API is stable)
-            # API_PORT="${PORT:-3001}"
-            # for i in 1 2 3; do
-            #   curl -sS -I "http://127.0.0.1:${API_PORT}/api" >/dev/null && exit 0
-            #   sleep 2
-            # done
-            # exit 1
+            echo "=== Health checks ==="
+            API_PORT="${PORT:-3001}"
+            API_OK=0
+            for i in 1 2 3; do
+              if curl -sS -I "http://127.0.0.1:${API_PORT}/api" >/dev/null; then
+                echo "Backend OK (port ${API_PORT})"
+                API_OK=1
+                break
+              fi
+              echo "Backend check ($i/3)..."
+              sleep 2
+            done
 
-            echo "=== Deploy finished (no HTTP health check) ==="
-            exit 0
+            WEB_OK=0
+            for i in 1 2 3; do
+              if curl -sS -I "http://127.0.0.1:${FRONT_PORT}/" >/dev/null; then
+                echo "Frontend OK (port ${FRONT_PORT})"
+                WEB_OK=1
+                break
+              fi
+              echo "Frontend check ($i/3)..."
+              sleep 2
+            done
+
+            if [ "$API_OK" = 1 ] && [ "$WEB_OK" = 1 ]; then
+              exit 0
+            fi
+            echo "Health check failed (need both API and frontend)"
+            exit 1
