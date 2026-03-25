@@ -14,11 +14,21 @@
 }
 
 .app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: #fff;
   margin: 0.1rem 0.3rem 1rem;
+}
+
+.app-brand-logo {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: block;
 }
 
 .app-nav {

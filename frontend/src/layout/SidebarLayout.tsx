@@ -18,7 +18,10 @@ export function SidebarLayout() {
   return (
     <div className="app-shell">
       <aside className={`app-sidebar ${mobileOpen ? "open" : ""}`}>
-        <div className="app-brand">VPDM</div>
+        <div className="app-brand">
+          <img className="app-brand-logo" src="/logo.svg" alt="VPDM logo" />
+          <span>VPDM</span>
+        </div>
         <nav className="app-nav">
           <button
             type="button"
