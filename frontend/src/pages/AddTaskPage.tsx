@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import type { Frequency, Priority } from "../types";
-import type { Task } from "../types";
+import type { Task, TaskUpsertPayload } from "../types";
 import { useCategories } from "../useCategories";
 import { useTasks } from "../useTasks";
 import { toastApiError, toastSuccess } from "../toast";
@@ -40,17 +40,30 @@ type FormState = {
   title: string;
   category: string;
   frequency: Frequency;
+  startDate: string;
   repeatWeekday: (typeof WEEKDAYS)[number];
   repeatDayOfMonth: string;
+  repeatIntervalDays: string;
 };
 
+function defaultIntervalDays(): string {
+  return "15";
+}
+
 function emptyForm(frequency: Frequency): FormState {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  const localIso = `${yyyy}-${mm}-${dd}`;
   return {
     title: "",
     category: "",
     frequency,
+    startDate: localIso,
     repeatWeekday: defaultWeekday(),
     repeatDayOfMonth: defaultDayOfMonth(),
+    repeatIntervalDays: defaultIntervalDays(),
   };
 }
 
@@ -94,18 +107,18 @@ export function AddTaskPage() {
     if (!title) return;
 
     try {
-      const payload: Omit<
-        Task,
-        "id" | "createdAt" | "updatedAt" | "startDate" | "endDate"
-      > = {
+      const payload: TaskUpsertPayload = {
         title,
         notes: "",
         priority: "medium" as Priority,
         frequency: form.frequency,
+        startDate: form.startDate,
         repeatWeekday:
           form.frequency === "weekly" ? form.repeatWeekday : null,
         repeatDayOfMonth:
           form.frequency === "monthly" ? Number(form.repeatDayOfMonth) : null,
+        repeatIntervalDays:
+          form.frequency === "interval" ? Number(form.repeatIntervalDays) : null,
         category: form.category.trim() || null,
       };
 
@@ -137,8 +150,10 @@ export function AddTaskPage() {
       title: task.title,
       category: task.category ?? "",
       frequency: task.frequency,
+      startDate: task.startDate,
       repeatWeekday: (task.repeatWeekday as (typeof WEEKDAYS)[number]) ?? defaultWeekday(),
       repeatDayOfMonth: String(task.repeatDayOfMonth ?? defaultDayOfMonth()),
+      repeatIntervalDays: String(task.repeatIntervalDays ?? defaultIntervalDays()),
     });
   }
 
@@ -220,9 +235,28 @@ export function AddTaskPage() {
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
+                <option value="interval">Every X days (example: every 15 days)</option>
+                <option value="once">One-time (specific date)</option>
               </select>
             </label>
           </div>
+
+          <label className="field">
+            <span className="label">
+              {form.frequency === "once" ? "Task Date" : "Start From"}
+            </span>
+            <input
+              className="input"
+              type="date"
+              value={form.startDate}
+              onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+            />
+            <p className="add-task-help">
+              {form.frequency === "once"
+                ? "Task will appear only on this date."
+                : "Task will start showing from this date."}
+            </p>
+          </label>
 
           {form.frequency === "weekly" ? (
             <label className="field">
@@ -264,6 +298,25 @@ export function AddTaskPage() {
               />
               <p className="add-task-help">
                 Task will appear on this date every month.
+              </p>
+            </label>
+          ) : null}
+
+          {form.frequency === "interval" ? (
+            <label className="field">
+              <span className="label">Repeat Every (how many days?)</span>
+              <input
+                className="input"
+                type="number"
+                min={1}
+                max={365}
+                value={form.repeatIntervalDays}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, repeatIntervalDays: e.target.value }))
+                }
+              />
+              <p className="add-task-help">
+                Task will appear every {form.repeatIntervalDays || "N"} days (e.g. every 15 days).
               </p>
             </label>
           ) : null}

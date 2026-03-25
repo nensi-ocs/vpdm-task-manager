@@ -224,13 +224,16 @@
   position: fixed;
   inset: 0;
   background: rgba(12, 15, 25, 0.56);
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1.25rem;
+  overflow: auto;
   z-index: 20;
 }
 
 .task-board .task-modal {
-  width: min(96vw, 430px);
+  width: min(96vw, 680px);
   background: #fff;
   border-radius: 12px;
   border: 1px solid var(--border);
@@ -238,6 +241,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  margin: auto;
 }
 
 .task-board .modal-head {
@@ -341,7 +345,7 @@
   }
 
   .task-board .task-modal {
-    width: min(98vw, 430px);
+    width: min(98vw, 680px);
     padding: 0.85rem;
   }
 }
@@ -362,6 +366,14 @@
   .task-board .modal-actions {
     flex-direction: column-reverse;
     align-items: stretch;
+  }
+
+  .task-board .task-modal .input {
+    width: 100%;
+  }
+
+  .task-board .modal-backdrop {
+    padding: 0.75rem;
   }
 }
 

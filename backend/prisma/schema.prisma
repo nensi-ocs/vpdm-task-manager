@@ -84,6 +84,9 @@ model TaskSeries {
   /// Monthly recurrence: 1-31
   repeatDayOfMonth Int? @map("repeat_day_of_month")
 
+  /// Interval recurrence: every N days (e.g. 15)
+  repeatIntervalDays Int? @map("repeat_interval_days")
+
   startDate DateTime @default(dbgenerated("CURRENT_DATE")) @map("start_date") @db.Date
   endDate   DateTime? @map("end_date") @db.Date
 
@@ -98,6 +101,7 @@ model TaskSeries {
   @@index([userId], map: "idx_task_series_user_id")
   @@index([repeatWeekday], map: "idx_task_series_repeat_weekday")
   @@index([repeatDayOfMonth], map: "idx_task_series_repeat_day_of_month")
+  @@index([repeatIntervalDays], map: "idx_task_series_repeat_interval_days")
   @@map("task_series")
 
   completions TaskCompletion[]

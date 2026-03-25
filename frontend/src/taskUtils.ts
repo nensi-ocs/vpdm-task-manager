@@ -32,7 +32,13 @@ function optOk(v: unknown, kind: "string" | "number"): boolean {
 }
 
 function isFrequency(x: unknown): x is Frequency {
-  return x === "daily" || x === "weekly" || x === "monthly";
+  return (
+    x === "daily" ||
+    x === "weekly" ||
+    x === "monthly" ||
+    x === "interval" ||
+    x === "once"
+  );
 }
 
 const WEEKDAYS = [
@@ -57,6 +63,18 @@ function optRepeatDayOfMonth(val: unknown): number | null {
   if (typeof val === "string" && val) {
     const n = Number.parseInt(val, 10);
     if (Number.isInteger(n) && n >= 1 && n <= 31) return n;
+  }
+  return null;
+}
+
+function optRepeatIntervalDays(val: unknown): number | null {
+  if (val === undefined || val === null) return null;
+  if (typeof val === "number" && Number.isInteger(val) && val >= 1 && val <= 365) {
+    return val;
+  }
+  if (typeof val === "string" && val) {
+    const n = Number.parseInt(val, 10);
+    if (Number.isInteger(n) && n >= 1 && n <= 365) return n;
   }
   return null;
 }
@@ -104,6 +122,13 @@ export function isTaskImport(x: unknown): x is Task {
     // If value is present, it must be a valid day-of-month.
     return false;
   }
+  if (
+    o.repeatIntervalDays !== undefined &&
+    optRepeatIntervalDays(o.repeatIntervalDays) === null
+  ) {
+    // If value is present, it must be a valid interval days count.
+    return false;
+  }
   if (!optOk(o.category, "string")) {
     return false;
   }
@@ -122,6 +147,7 @@ export function normalizeTaskImport(x: Record<string, unknown>): Task {
         ? x.repeatWeekday
         : null,
     repeatDayOfMonth: optRepeatDayOfMonth(x.repeatDayOfMonth),
+    repeatIntervalDays: optRepeatIntervalDays(x.repeatIntervalDays),
     createdAt: x.createdAt as string,
     startDate:
       typeof x.startDate === "string"

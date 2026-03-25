@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "./auth/AuthContext";
-import type { Frequency, Priority, Task } from "./types";
+import type { Frequency, Priority, Task, TaskUpsertPayload } from "./types";
 import { useCategories } from "./useCategories";
 import { useFollowupClients } from "./useFollowupClients";
 import { useTasks } from "./useTasks";
@@ -79,11 +79,18 @@ type ModalState = {
   title: string;
   category: string;
   frequency: Frequency;
+  startDate: string;
   repeatWeekday: (typeof WEEKDAYS)[number];
   repeatDayOfMonth: string;
+  repeatIntervalDays: string;
 };
 
+function defaultIntervalDays(): string {
+  return "15";
+}
+
 function emptyModal(frequency: Frequency): ModalState {
+  const today = todayIsoKolkata();
   return {
     open: false,
     mode: "create",
@@ -91,21 +98,27 @@ function emptyModal(frequency: Frequency): ModalState {
     title: "",
     category: "",
     frequency,
+    startDate: today,
     repeatWeekday: defaultWeekday(),
     repeatDayOfMonth: defaultDayOfMonth(),
+    repeatIntervalDays: defaultIntervalDays(),
   };
 }
 
 function sectionTitle(freq: Frequency): string {
-  if (freq === "daily") return "Daily Tasks";
+  if (freq === "daily") return "Everyday Tasks";
   if (freq === "weekly") return "Weekly Tasks";
-  return "Monthly Tasks";
+  if (freq === "monthly") return "Monthly Tasks";
+  if (freq === "interval") return "Every X Days Tasks";
+  return "One-Time Tasks";
 }
 
 function sectionBadge(freq: Frequency): string {
   if (freq === "daily") return "DAILY";
   if (freq === "weekly") return "WEEKLY";
-  return "MONTHLY";
+  if (freq === "monthly") return "MONTHLY";
+  if (freq === "interval") return "EVERY X DAYS";
+  return "ONE-TIME";
 }
 
 function createModal(frequency: Frequency, defaultCategory: string): ModalState {
@@ -227,6 +240,21 @@ export function TaskBoard() {
         return selectedDateIso >= firstDueIso;
       }
 
+      if (t.frequency === "interval") {
+        if (typeof t.repeatIntervalDays !== "number" || t.repeatIntervalDays < 1) {
+          return false;
+        }
+        const start = isoToUtcMidday(seriesStartIso);
+        const selected = isoToUtcMidday(selectedDateIso);
+        const msDay = 24 * 60 * 60 * 1000;
+        const daysDiff = Math.round((selected.getTime() - start.getTime()) / msDay);
+        return daysDiff >= 0 && daysDiff % t.repeatIntervalDays === 0;
+      }
+
+      if (t.frequency === "once") {
+        return selectedDateIso === seriesStartIso;
+      }
+
       return false;
     },
     [selectedDateIso]
@@ -252,28 +280,48 @@ export function TaskBoard() {
       ),
     [tasksForSelectedDate, visibleTasks]
   );
+  const interval = useMemo(
+    () =>
+      sortForSection(
+        visibleTasks.filter((t) => t.frequency === "interval" && tasksForSelectedDate(t))
+      ),
+    [tasksForSelectedDate, visibleTasks]
+  );
+  const once = useMemo(
+    () =>
+      sortForSection(
+        visibleTasks.filter((t) => t.frequency === "once" && tasksForSelectedDate(t))
+      ),
+    [tasksForSelectedDate, visibleTasks]
+  );
 
   const categoryOptions = useMemo(() => {
     return [...categories.map((c) => c.name)].sort((a, b) => a.localeCompare(b));
   }, [categories]);
 
   function openCreate(frequency: Frequency) {
-    setModal(createModal(frequency, categoryOptions[0] ?? ""));
+    setModal({
+      ...createModal(frequency, categoryOptions[0] ?? ""),
+      startDate: selectedDateIso,
+    });
   }
 
   async function submitModal(e: FormEvent) {
     e.preventDefault();
     const title = modal.title.trim();
     if (!title) return;
-    const payload: Omit<Task, "id" | "createdAt" | "updatedAt" | "startDate" | "endDate"> = {
+    const payload: TaskUpsertPayload = {
       title,
       notes: "",
       priority: "medium" as Priority,
       frequency: modal.frequency,
+      startDate: modal.startDate,
       repeatWeekday:
         modal.frequency === "weekly" ? modal.repeatWeekday : null,
       repeatDayOfMonth:
         modal.frequency === "monthly" ? Number(modal.repeatDayOfMonth) : null,
+      repeatIntervalDays:
+        modal.frequency === "interval" ? Number(modal.repeatIntervalDays) : null,
       category: modal.category.trim() || null,
     };
     if (modal.mode === "create") {
@@ -417,6 +465,30 @@ export function TaskBoard() {
             void setTaskCompletionForDate(task.id, selectedDateIso, completed)
           }
         />
+        <TaskSection
+          title={sectionTitle("interval")}
+          badge={sectionBadge("interval")}
+          frequency="interval"
+          tasks={interval}
+          selectedDateIso={selectedDateIso}
+          onAdd={openCreate}
+          completedTaskIds={completedTaskIds}
+          onToggle={(task, completed) =>
+            void setTaskCompletionForDate(task.id, selectedDateIso, completed)
+          }
+        />
+        <TaskSection
+          title={sectionTitle("once")}
+          badge={sectionBadge("once")}
+          frequency="once"
+          tasks={once}
+          selectedDateIso={selectedDateIso}
+          onAdd={openCreate}
+          completedTaskIds={completedTaskIds}
+          onToggle={(task, completed) =>
+            void setTaskCompletionForDate(task.id, selectedDateIso, completed)
+          }
+        />
 
         <section className="panel tracker-panel">
           <h2 className="tracker-title">Client Followup Tracker</h2>
@@ -513,9 +585,30 @@ export function TaskBoard() {
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
+                  <option value="interval">Every X days (example: every 15 days)</option>
+                  <option value="once">One-time (specific date)</option>
                 </select>
               </label>
             </div>
+
+            <label className="field">
+              <span className="label">
+                {modal.frequency === "once" ? "Task Date" : "Start From"}
+              </span>
+              <input
+                className="input"
+                type="date"
+                value={modal.startDate}
+                onChange={(e) =>
+                  setModal((prev) => ({ ...prev, startDate: e.target.value }))
+                }
+              />
+              <p className="modal-help">
+                {modal.frequency === "once"
+                  ? "Task will appear only on this date."
+                  : "Task will start showing from this date."}
+              </p>
+            </label>
 
             {modal.frequency === "weekly" ? (
               <label className="field">
@@ -552,6 +645,25 @@ export function TaskBoard() {
                   onChange={(e) => setModal((prev) => ({ ...prev, repeatDayOfMonth: e.target.value }))}
                 />
                 <p className="modal-help">Task will appear on this date every month.</p>
+              </label>
+            ) : null}
+
+            {modal.frequency === "interval" ? (
+              <label className="field">
+                <span className="label">Repeat Every (how many days?)</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={modal.repeatIntervalDays}
+                  onChange={(e) =>
+                    setModal((prev) => ({ ...prev, repeatIntervalDays: e.target.value }))
+                  }
+                />
+                <p className="modal-help">
+                  Task will appear every {modal.repeatIntervalDays || "N"} days (e.g. every 15 days).
+                </p>
               </label>
             ) : null}
 

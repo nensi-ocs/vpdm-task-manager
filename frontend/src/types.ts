@@ -1,5 +1,5 @@
 export type Priority = "low" | "medium" | "high";
-export type Frequency = "daily" | "weekly" | "monthly";
+export type Frequency = "daily" | "weekly" | "monthly" | "interval" | "once";
 
 export type Task = {
   id: number;
@@ -13,11 +13,15 @@ export type Task = {
   repeatWeekday: string | null;
   /// Monthly recurrence: 1-31
   repeatDayOfMonth: number | null;
+  /// Interval recurrence: every N days (e.g. 15)
+  repeatIntervalDays: number | null;
   createdAt: string;
   updatedAt: string;
   /** VPDM sheet section (e.g. Office, Tools) */
   category: string | null;
 };
+
+export type TaskUpsertPayload = Omit<Task, "id" | "createdAt" | "updatedAt" | "endDate">;
 
 export type Filter = "all" | "active" | "done";
 

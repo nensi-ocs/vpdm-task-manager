@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Task } from "./types";
+import type { Task, TaskUpsertPayload } from "./types";
 import { apiDelete, apiGet, apiSendJson } from "./api";
 import { toastApiError } from "./toast";
 
@@ -64,7 +64,7 @@ export function useTasks(
   }, [selectedDateIso, userId]);
 
   const addTask = useCallback(
-    async (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "startDate" | "endDate">) => {
+    async (task: TaskUpsertPayload) => {
     setError(null);
     try {
       const created = await apiSendJson<Task>("/tasks", "POST", task);

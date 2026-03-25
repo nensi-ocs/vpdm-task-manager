@@ -7,6 +7,7 @@ import {
   isImportedTask,
   isPriority,
   isRepeatDayOfMonth,
+  isRepeatIntervalDays,
   isRepeatWeekday,
   normalizeImportedTask,
 } from "./task.validation";
@@ -19,6 +20,7 @@ type TaskRecord = {
   frequency: string;
   repeatWeekday: string | null;
   repeatDayOfMonth: number | null;
+  repeatIntervalDays: number | null;
   startDate: Date;
   endDate: Date | null;
   createdAt: Date;
@@ -43,8 +45,25 @@ function optRepeatDayOfMonth(val: unknown): number | null {
   return null;
 }
 
+function optRepeatIntervalDays(val: unknown): number | null {
+  if (val === undefined || val === null) return null;
+  if (isRepeatIntervalDays(val)) return val;
+  if (typeof val === "string" && val) {
+    const n = Number.parseInt(val, 10);
+    if (Number.isInteger(n) && n >= 1 && n <= 365) return n;
+  }
+  return null;
+}
+
 function isIsoDate(date: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(date);
+}
+
+function parseIsoDateToUtcDateOnly(dateIso: unknown): Date | null {
+  if (dateIso === undefined || dateIso === null || dateIso === "") return null;
+  if (typeof dateIso !== "string") return null;
+  if (!isIsoDate(dateIso)) return null;
+  return new Date(`${dateIso}T00:00:00.000Z`);
 }
 
 function startOfKolkataDay(d: Date): Date {
@@ -76,6 +95,7 @@ export class TasksService {
       endDate: task.endDate ? task.endDate.toISOString().slice(0, 10) : null,
       repeatWeekday: task.repeatWeekday,
       repeatDayOfMonth: task.repeatDayOfMonth,
+      repeatIntervalDays: task.repeatIntervalDays,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
       category: task.category,
@@ -106,7 +126,9 @@ export class TasksService {
       ? body.repeatWeekday
       : null;
     const repeatDayOfMonth = optRepeatDayOfMonth(body.repeatDayOfMonth);
-    const startDate = startOfKolkataDay(new Date());
+    const repeatIntervalDays = optRepeatIntervalDays(body.repeatIntervalDays);
+    const startDate =
+      parseIsoDateToUtcDateOnly(body.startDate) ?? startOfKolkataDay(new Date());
 
     const saved = await this.prisma.taskSeries.create({
       data: {
@@ -116,6 +138,7 @@ export class TasksService {
         frequency,
         repeatWeekday,
         repeatDayOfMonth,
+        repeatIntervalDays,
         startDate,
         endDate: null,
         userId,
@@ -142,6 +165,8 @@ export class TasksService {
       frequency?: string;
       repeatWeekday?: string | null;
       repeatDayOfMonth?: number | null;
+      repeatIntervalDays?: number | null;
+      startDate?: Date;
       category?: string | null;
     } = {};
 
@@ -176,8 +201,18 @@ export class TasksService {
     if (body.repeatDayOfMonth !== undefined) {
       data.repeatDayOfMonth = optRepeatDayOfMonth(body.repeatDayOfMonth);
     }
+    if (body.repeatIntervalDays !== undefined) {
+      data.repeatIntervalDays = optRepeatIntervalDays(body.repeatIntervalDays);
+    }
     if (body.category !== undefined) {
       data.category = optStr(body.category, 120);
+    }
+    if (body.startDate !== undefined) {
+      const parsed = parseIsoDateToUtcDateOnly(body.startDate);
+      if (!parsed) {
+        throw new BadRequestException("startDate must be YYYY-MM-DD");
+      }
+      data.startDate = parsed;
     }
 
     if (Object.keys(data).length === 0) {
@@ -239,6 +274,7 @@ export class TasksService {
             frequency: t.frequency,
             repeatWeekday: t.repeatWeekday,
             repeatDayOfMonth: t.repeatDayOfMonth,
+            repeatIntervalDays: t.repeatIntervalDays,
             createdAt,
             updatedAt: new Date(t.updatedAt),
             startDate,

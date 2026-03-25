@@ -19,7 +19,13 @@ export function isPriority(x: unknown): x is Priority {
 }
 
 export function isFrequency(x: unknown): x is Frequency {
-  return x === "daily" || x === "weekly" || x === "monthly";
+  return (
+    x === "daily" ||
+    x === "weekly" ||
+    x === "monthly" ||
+    x === "interval" ||
+    x === "once"
+  );
 }
 
 const WEEKDAYS = [
@@ -44,6 +50,10 @@ export function isRepeatDayOfMonth(
   );
 }
 
+export function isRepeatIntervalDays(x: unknown): x is number {
+  return typeof x === "number" && Number.isInteger(x) && x >= 1 && x <= 365;
+}
+
 /** Legacy JSON exports may omit VPDM fields */
 export function isImportedTask(x: unknown): x is Record<string, unknown> {
   if (!x || typeof x !== "object") return false;
@@ -64,6 +74,14 @@ export function isImportedTask(x: unknown): x is Record<string, unknown> {
         (() => {
           const n = Number.parseInt(o.repeatDayOfMonth as string, 10);
           return Number.isInteger(n) && n >= 1 && n <= 31;
+        })())) &&
+    (o.repeatIntervalDays === undefined ||
+      o.repeatIntervalDays === null ||
+      isRepeatIntervalDays(o.repeatIntervalDays) ||
+      (typeof o.repeatIntervalDays === "string" &&
+        (() => {
+          const n = Number.parseInt(o.repeatIntervalDays as string, 10);
+          return Number.isInteger(n) && n >= 1 && n <= 365;
         })())) &&
     (o.completed === undefined || typeof o.completed === "boolean") &&
     typeof o.createdAt === "string" &&
@@ -98,6 +116,17 @@ export function normalizeImportedTask(o: Record<string, unknown>): ImportedTask 
     return null;
   };
 
+  const optRepeatIntervalDays = (): number | null => {
+    const v = o.repeatIntervalDays;
+    if (v === undefined || v === null || v === "") return null;
+    if (isRepeatIntervalDays(v)) return v;
+    if (typeof v === "string") {
+      const n = Number.parseInt(v, 10);
+      if (Number.isInteger(n) && n >= 1 && n <= 365) return n;
+    }
+    return null;
+  };
+
   return {
     id:
       typeof o.id === "string" ? Number.parseInt(o.id, 10) : (o.id as number),
@@ -107,6 +136,7 @@ export function normalizeImportedTask(o: Record<string, unknown>): ImportedTask 
     frequency: isFrequency(o.frequency) ? o.frequency : "daily",
     repeatWeekday: optRepeatWeekday(),
     repeatDayOfMonth: optRepeatDayOfMonth(),
+    repeatIntervalDays: optRepeatIntervalDays(),
     createdAt: o.createdAt as string,
     updatedAt:
       typeof o.updatedAt === "string" ? o.updatedAt : (o.createdAt as string),
