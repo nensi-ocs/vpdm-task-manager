@@ -17,14 +17,15 @@ sudo mkdir -p /var/www/html/vpdm-task-manager
 sudo chown -R "$USER":"$USER" /var/www/html/vpdm-task-manager
 ```
 
-After your first deployment (or after manually copying project files), create your backend environment file:
+On the first deploy, the pipeline creates `~/apps/vpdm-task-manager/backend/.env` from `.env.example` if no `.env` exists yet. **You must edit it** on the server with real values (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`) before the app can work reliably (and Prisma migrate needs a valid `DATABASE_URL`).
+
+You can also create it manually before the first run:
 
 ```bash
 mkdir -p ~/apps/vpdm-task-manager/backend
 cp ~/apps/vpdm-task-manager/backend/.env.example ~/apps/vpdm-task-manager/backend/.env
+nano ~/apps/vpdm-task-manager/backend/.env
 ```
-
-Then edit `~/apps/vpdm-task-manager/backend/.env` with real values (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`).
 
 ## 2) Nginx config
 
