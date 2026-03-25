@@ -27,7 +27,30 @@ sudo chown -R "$USER":"$USER" /var/www/html/vpdm-task-manager
 
 Put real values in `backend/.env` (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`). You can either commit `backend/.env` (not recommended for production secrets) or create `/var/www/html/vpdm-task-manager/backend/.env` once on the server before the first deploy (the workflow can preserve it across deploys).
 
-The workflow runs **`prisma migrate deploy`** when `RUN_PRISMA_MIGRATE=true` (default in repo). If deploy fails with **P1000**, fix `DATABASE_URL` in `/var/www/html/vpdm-task-manager/backend/.env` on the VPS, then re-run the workflow.
+The workflow runs **`prisma migrate deploy`** when `RUN_PRISMA_MIGRATE=true` (default in repo).
+
+**Prisma / Postgres errors**
+
+| Code | Meaning |
+|------|--------|
+| **P1000** | Wrong password or user (authentication failed). Fix `DATABASE_URL`. |
+| **P1010** | User reached the server but was **denied** on that database or `public` schema (permissions or wrong DB user for that database). |
+
+**Fix P1010** (run SQL as a **superuser** or the database **owner** on host `46.202.162.202` — e.g. Hostinger hPanel → PostgreSQL → phpPgAdmin / SQL, or `psql`). Replace `app_user` with the **exact** username from your `DATABASE_URL` (on managed hosting this is often **not** `postgres`):
+
+```sql
+GRANT CONNECT ON DATABASE vpdm_task_manager TO app_user;
+\c vpdm_task_manager
+GRANT USAGE, CREATE ON SCHEMA public TO app_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO app_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO app_user;
+```
+
+Also check: **database name** in `DATABASE_URL` matches the DB you created; **remote access** / firewall allows your VPS IP to `46.202.162.202:5432`.
+
+While fixing grants, set **`RUN_PRISMA_MIGRATE=false`** in `.github/workflows/main.yml` so deploy can still update files and restart PM2; turn it back to **`true`** after SQL succeeds.
 
 If you previously ran PM2 from `~/apps/vpdm-task-manager/backend`, remove the old process once so the new path is used:
 

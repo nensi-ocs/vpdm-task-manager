@@ -10,7 +10,7 @@ import {
   VPDM_TRACKS,
 } from "./vpdmCatalog";
 import "./TaskBoard.css";
-import { X } from "lucide-react";
+import { FileSpreadsheet, Printer, X } from "lucide-react";
 
 const WEEKDAYS = [
   "Sunday",
@@ -342,16 +342,16 @@ export function TaskBoard() {
             onChange={(e) => setSelectedDateIso(e.target.value)}
             aria-label="Select schedule date"
           />
-          <button className="btn ghost sm">Reminders</button>
           <button
             type="button"
             className="btn ghost sm"
             onClick={() => void exportDailySheetXlsx()}
           >
+            <FileSpreadsheet size={16} aria-hidden="true" />
             Excel
           </button>
-          <button className="btn ghost sm" onClick={() => void reload()}>Reset</button>
           <button className="btn primary sm" onClick={() => void printDailySheetLikeExport()}>
+            <Printer size={16} aria-hidden="true" />
             Print
           </button>
         </div>

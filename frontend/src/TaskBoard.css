@@ -20,8 +20,19 @@
 .task-board .vpm-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.7rem;
   align-items: center;
+}
+
+.task-board .vpm-controls .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.task-board .vpm-controls .btn svg {
+  display: block;
 }
 
 .task-board .top-user-email {
