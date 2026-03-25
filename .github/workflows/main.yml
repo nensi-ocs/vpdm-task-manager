@@ -106,8 +106,8 @@ jobs:
             BKP="$APP/backups"
             TS="$(date +%Y%m%d_%H%M%S)"
 
-            # Set true after DATABASE_URL in backend/.env matches Postgres on this VPS
-            RUN_PRISMA_MIGRATE=false
+            # Requires valid DATABASE_URL in backend/.env on the server (fix P1000 before deploy if needed)
+            RUN_PRISMA_MIGRATE=true
             # Static SPA via PM2 (same port convention as Vite dev: 5173)
             FRONT_PORT=5173
 

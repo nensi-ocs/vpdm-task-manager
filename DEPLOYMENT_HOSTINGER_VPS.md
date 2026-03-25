@@ -27,7 +27,7 @@ sudo chown -R "$USER":"$USER" /var/www/html/vpdm-task-manager
 
 Put real values in `backend/.env` (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`). You can either commit `backend/.env` (not recommended for production secrets) or create `/var/www/html/vpdm-task-manager/backend/.env` once on the server before the first deploy (the workflow can preserve it across deploys).
 
-In `.github/workflows/main.yml`, set `RUN_PRISMA_MIGRATE=true` only after `DATABASE_URL` matches Postgres on the VPS (while `false`, `prisma migrate deploy` is skipped to avoid P1000).
+The workflow runs **`prisma migrate deploy`** when `RUN_PRISMA_MIGRATE=true` (default in repo). If deploy fails with **P1000**, fix `DATABASE_URL` in `/var/www/html/vpdm-task-manager/backend/.env` on the VPS, then re-run the workflow.
 
 If you previously ran PM2 from `~/apps/vpdm-task-manager/backend`, remove the old process once so the new path is used:
 
@@ -37,7 +37,49 @@ pm2 delete vpdm-task-api 2>/dev/null || true
 
 Then run a fresh deploy so PM2 starts from `/var/www/html/vpdm-task-manager/backend`.
 
-## 2) Nginx config
+## 2) Apache (`app.vpdm.cloud` on 443) — fixes **503 Service Unavailable**
+
+A **503** from Apache usually means the reverse proxy cannot reach **PM2** on `127.0.0.1` (wrong port, process not running, or proxy modules disabled).
+
+On the VPS:
+
+```bash
+sudo a2enmod proxy proxy_http ssl headers
+sudo systemctl restart apache2
+pm2 ls
+curl -sS -I http://127.0.0.1:5173/ | head -1
+curl -sS -I http://127.0.0.1:3001/api | head -1
+```
+
+If either `curl` fails, fix PM2 first (`pm2 logs vpdm-task-web`, `pm2 logs vpdm-task-api`). Then check Apache error log: `sudo tail -50 /var/log/apache2/error.log`.
+
+Put **`/api` before `/`** so API requests are not sent to the frontend port:
+
+```apache
+<VirtualHost *:443>
+    ServerName app.vpdm.cloud
+
+    SSLEngine on
+    # Certbot example: /etc/letsencrypt/live/app.vpdm.cloud/fullchain.pem and privkey.pem
+    SSLCertificateFile /etc/ssl/certs/your-fullchain.pem
+    SSLCertificateKeyFile /etc/ssl/private/your-privkey.pem
+
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "https"
+
+    ProxyPass        /api  http://127.0.0.1:3001/api
+    ProxyPassReverse /api  http://127.0.0.1:3001/api
+
+    ProxyPass        /  http://127.0.0.1:5173/
+    ProxyPassReverse /  http://127.0.0.1:5173/
+</VirtualHost>
+```
+
+Adjust **3001** / **5173** if your `PORT` or `FRONT_PORT` in the workflow differ.
+
+In **`backend/.env`** on the server, set **`CORS_ORIGINS`** to include `https://app.vpdm.cloud` (see `backend/.env.example`).
+
+## 3) Nginx config (if you use Nginx instead of Apache)
 
 **Recommended (matches PM2 frontend):** proxy the browser to **`vpdm-task-web`** on **5173** so Nginx never exposes `backend/` or `.env` as static files.
 
@@ -80,7 +122,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## 3) GitHub repository secrets
+## 4) GitHub repository secrets
 
 In GitHub repo settings, add:
 
@@ -89,14 +131,14 @@ In GitHub repo settings, add:
 - `SERVER_SSH_KEY` (private key content used by GitHub Actions)
 - `SERVER_SSH_PASSPHRASE` (only if your private key is passphrase-protected; leave unset or empty if the key has no passphrase)
 
-## 4) How the pipeline deploys
+## 5) How the pipeline deploys
 
 The workflow has 2 jobs:
 
 1. **Build job** — builds `frontend/dist` and `backend/dist`, packs `frontend.tgz` and `backend.tgz` (includes `backend/.env` in the tarball when that file exists in the repo).
 2. **Deploy job** — uploads to `/tmp/vpdm_deploy`, backs up `frontend/` and `backend/` into `backups/`, extracts artifacts into `/var/www/html/vpdm-task-manager/frontend` and `.../backend`, preserves existing server `backend/.env` when present, runs `npm ci --omit=dev`, optional `prisma migrate deploy`, restarts PM2 `vpdm-task-api`, runs a local HTTP health check on `/api`.
 
-## 5) SSL (recommended)
+## 6) SSL (recommended)
 
 After DNS is pointed to VPS:
 
