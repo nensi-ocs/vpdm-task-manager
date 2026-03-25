@@ -39,7 +39,7 @@ export function LoginPage() {
           <span className="brand-mark" aria-hidden />
           <div>
             <h1 className="auth-title">Sign in</h1>
-            <p className="auth-sub">Daily Task Board</p>
+            <p className="auth-sub">VPDM Task Manager</p>
           </div>
         </div>
         <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>

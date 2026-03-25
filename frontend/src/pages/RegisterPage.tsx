@@ -53,7 +53,7 @@ export function RegisterPage() {
           <span className="brand-mark" aria-hidden />
           <div>
             <h1 className="auth-title">Create account</h1>
-            <p className="auth-sub">Daily Task Board</p>
+            <p className="auth-sub">VPDM Task Managet</p>
           </div>
         </div>
         <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
