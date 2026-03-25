@@ -99,6 +99,9 @@ jobs:
           script: |
             set -euo pipefail
 
+            # Set to true after Postgres is running and backend/.env exists on the VPS
+            RUN_ENV_PRISMA=false
+
             APP="/home/${{ secrets.SERVER_USER }}/apps/vpdm-task-manager"
             FRONT_WEB="/var/www/html/vpdm-task-manager"
             BACK="$APP/backend"
@@ -136,17 +139,19 @@ jobs:
             npm ci --omit=dev
             npx prisma generate
 
-            if [ ! -f "$BACK/.env" ]; then
-              echo "ERROR: $BACK/.env not found. Create it once on the server."
-              exit 1
+            if [ "$RUN_ENV_PRISMA" = true ]; then
+              if [ ! -f "$BACK/.env" ]; then
+                echo "ERROR: $BACK/.env not found. Create it once on the server."
+                exit 1
+              fi
+              set -a
+              source "$BACK/.env"
+              set +a
+              echo "=== Run Prisma migrate deploy ==="
+              npx prisma migrate deploy
+            else
+              echo "=== Skipping .env + Prisma migrate (RUN_ENV_PRISMA=false; enable when DB + .env are ready) ==="
             fi
-
-            set -a
-            source "$BACK/.env"
-            set +a
-
-            echo "=== Run Prisma migrate deploy ==="
-            npx prisma migrate deploy
 
             echo "=== Start/restart backend with PM2 ==="
             command -v pm2 >/dev/null 2>&1 || (echo "ERROR: pm2 not installed" && exit 1)
@@ -159,15 +164,19 @@ jobs:
             pm2 save
 
             echo "=== Health check (NestJS) ==="
-            API_PORT="${PORT:-3001}"
-            for i in 1 2 3; do
-              if curl -sS -I "http://127.0.0.1:${API_PORT}/api" >/dev/null; then
-                echo "Backend health check OK"
-                exit 0
-              fi
-              echo "Backend check failed ($i/3), retrying in 2s..."
-              sleep 2
-            done
-
-            echo "Backend health check failed after retries"
-            exit 1
+            if [ "$RUN_ENV_PRISMA" = true ]; then
+              API_PORT="${PORT:-3001}"
+              for i in 1 2 3; do
+                if curl -sS -I "http://127.0.0.1:${API_PORT}/api" >/dev/null; then
+                  echo "Backend health check OK"
+                  exit 0
+                fi
+                echo "Backend check failed ($i/3), retrying in 2s..."
+                sleep 2
+              done
+              echo "Backend health check failed after retries"
+              exit 1
+            else
+              echo "Skipping backend HTTP health check (RUN_ENV_PRISMA=false)"
+              exit 0
+            fi

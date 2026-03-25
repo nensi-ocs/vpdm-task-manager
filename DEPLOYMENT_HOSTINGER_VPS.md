@@ -17,9 +17,9 @@ sudo mkdir -p /var/www/html/vpdm-task-manager
 sudo chown -R "$USER":"$USER" /var/www/html/vpdm-task-manager
 ```
 
-On the first deploy, the pipeline creates `~/apps/vpdm-task-manager/backend/.env` from `.env.example` if no `.env` exists yet. **You must edit it** on the server with real values (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`) before the app can work reliably (and Prisma migrate needs a valid `DATABASE_URL`).
+Create `backend/.env` on the server with real values (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`). While `RUN_ENV_PRISMA=false` in the workflow, deploy skips loading `.env`, Prisma migrate, and the strict API health check so you can ship static files and code first.
 
-You can also create it manually before the first run:
+Example (manual):
 
 ```bash
 mkdir -p ~/apps/vpdm-task-manager/backend
@@ -79,6 +79,7 @@ The workflow has 2 jobs:
    - Builds frontend (`frontend/dist`) and backend (`backend/dist`) in CI.
    - Creates two artifacts: `frontend.tgz` and `backend.tgz`.
 2. **Deploy job**
+   - In `.github/workflows/main.yml`, the remote script sets `RUN_ENV_PRISMA=false` until Postgres and `backend/.env` are ready; then set it to `true` to load `.env`, run `prisma migrate deploy`, and enforce the backend health check.
    - Uploads artifacts to `/tmp/vpdm_deploy` on the VPS.
    - Backs up current deployment files.
    - Deploys frontend to `/var/www/html/vpdm-task-manager`.
