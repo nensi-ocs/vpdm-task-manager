@@ -13,18 +13,17 @@ sudo apt install -y nginx
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 sudo npm install -g pm2
-sudo mkdir -p /var/www/html/vpdm-task-manager
+sudo mkdir -p /var/www/html/vpdm-task-manager/{frontend,backend,backups}
 sudo chown -R "$USER":"$USER" /var/www/html/vpdm-task-manager
 ```
 
 Put real values in `backend/.env` (`DATABASE_URL`, `JWT_SECRET`, `PORT`, `CORS_ORIGINS`). Until `DATABASE_URL` matches Postgres on the VPS, keep `RUN_PRISMA_MIGRATE=false` in `.github/workflows/main.yml` so deploy skips `prisma migrate deploy` (avoids P1000). Set `RUN_PRISMA_MIGRATE=true` once the DB credentials are correct.
 
-Example (manual):
+Example (manual `.env` on the server, same tree as deploy):
 
 ```bash
-mkdir -p ~/apps/vpdm-task-manager/backend
-cp ~/apps/vpdm-task-manager/backend/.env.example ~/apps/vpdm-task-manager/backend/.env
-nano ~/apps/vpdm-task-manager/backend/.env
+cp /var/www/html/vpdm-task-manager/backend/.env.example /var/www/html/vpdm-task-manager/backend/.env
+nano /var/www/html/vpdm-task-manager/backend/.env
 ```
 
 ## 2) Nginx config
@@ -36,7 +35,7 @@ server {
     listen 80;
     server_name your-domain.com www.your-domain.com;
 
-    root /var/www/html/vpdm-task-manager;
+    root /var/www/html/vpdm-task-manager/frontend;
     index index.html;
 
     location /api/ {
@@ -81,8 +80,8 @@ The workflow has 2 jobs:
 2. **Deploy job**
    - Uploads artifacts to `/tmp/vpdm_deploy` on the VPS.
    - Backs up current deployment files.
-   - Deploys frontend to `/var/www/html/vpdm-task-manager`.
-   - Deploys backend to `~/apps/vpdm-task-manager/backend` (`.env` is included in the backend artifact if `backend/.env` exists in the repo at build time).
+   - Deploys under `/var/www/html/vpdm-task-manager/` like `jwell_b2b`: `frontend/` (Vite `dist`), `backend/` (Nest + Prisma), `backups/` (rollout tarballs).
+   - `.env` is included in the backend artifact if `backend/.env` exists in the repo at build time.
    - Installs backend production dependencies (`npm ci --omit=dev`), loads `.env`, then optionally runs `prisma migrate deploy`.
    - In `.github/workflows/main.yml`, the remote script sets `RUN_PRISMA_MIGRATE=false` by default so deploy does not fail with **P1000** while `DATABASE_URL` still points at wrong credentials. Set `RUN_PRISMA_MIGRATE=true` after Postgres on the VPS matches `DATABASE_URL` in `.env`.
    - Restarts PM2 process `vpdm-task-api`.

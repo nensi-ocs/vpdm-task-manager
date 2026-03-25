@@ -102,24 +102,25 @@ jobs:
             # P1000 = wrong DB user/password or Postgres not on localhost. Set true after DATABASE_URL in .env matches VPS Postgres.
             RUN_PRISMA_MIGRATE=false
 
-            APP="/home/${{ secrets.SERVER_USER }}/apps/vpdm-task-manager"
-            FRONT_WEB="/var/www/html/vpdm-task-manager"
-            BACK="$APP/backend"
-            BKP="$APP/backups"
+            # Same layout as jwell_b2b: one app root with frontend / backend / backups
+            ROOT="/var/www/html/vpdm-task-manager"
+            FRONT="$ROOT/frontend"
+            BACK="$ROOT/backend"
+            BKP="$ROOT/backups"
             TS="$(date +%Y%m%d_%H%M%S)"
 
-            mkdir -p "$APP" "$BACK" "$BKP" "$FRONT_WEB"
+            mkdir -p "$ROOT" "$FRONT" "$BACK" "$BKP"
 
             echo "=== Backup current deployment ==="
-            [ -d "$FRONT_WEB" ] && tar -czf "$BKP/frontend_$TS.tgz" -C /var/www/html vpdm-task-manager || true
-            [ -d "$BACK" ] && tar -czf "$BKP/backend_$TS.tgz" -C "$APP" backend || true
+            [ -d "$FRONT" ] && tar -czf "$BKP/frontend_$TS.tgz" -C "$ROOT" frontend || true
+            [ -d "$BACK" ] && tar -czf "$BKP/backend_$TS.tgz" -C "$ROOT" backend || true
 
             echo "=== Deploy frontend static files ==="
-            rm -rf "$FRONT_WEB"/*
+            rm -rf "$FRONT"/*
             rm -rf /tmp/vpdm_deploy/extract_frontend
             mkdir -p /tmp/vpdm_deploy/extract_frontend
             tar -xzf /tmp/vpdm_deploy/artifacts/frontend.tgz -C /tmp/vpdm_deploy/extract_frontend
-            cp -r /tmp/vpdm_deploy/extract_frontend/dist/. "$FRONT_WEB/"
+            cp -r /tmp/vpdm_deploy/extract_frontend/dist/. "$FRONT/"
 
             echo "=== Deploy backend ==="
             rm -rf "$BACK"/*
