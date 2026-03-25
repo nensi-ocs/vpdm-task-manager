@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import type { Frequency, ImportedTask, Priority, TaskDTO } from "./task.types";
 import {
@@ -190,16 +191,39 @@ export class TasksService {
     return this.toDto(saved as TaskRecord);
   }
 
-  async removeForUser(userId: string, id: number): Promise<boolean> {
-    const res = await this.prisma.taskSeries.deleteMany({ where: { id, userId } });
-    return res.count > 0;
+  async removeForUser(
+    userId: string,
+    id: number,
+    endDateIso?: string
+  ): Promise<boolean> {
+    const existing = await this.prisma.taskSeries.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!existing) return false;
+
+    let endDate: Date;
+    if (endDateIso !== undefined) {
+      if (!isIsoDate(endDateIso)) {
+        throw new BadRequestException("endDate must be YYYY-MM-DD");
+      }
+      endDate = new Date(`${endDateIso}T00:00:00.000Z`);
+    } else {
+      endDate = startOfKolkataDay(new Date());
+    }
+
+    await this.prisma.taskSeries.update({
+      where: { id },
+      data: { endDate },
+    });
+    return true;
   }
 
   async replaceAllFromImportForUser(
     userId: string,
     tasks: ImportedTask[]
   ): Promise<TaskDTO[]> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.taskSeries.deleteMany({ where: { userId } });
       for (const t of tasks) {
         const created = new Date(t.createdAt);
@@ -242,7 +266,7 @@ export class TasksService {
       },
       select: { taskId: true },
     });
-    return { taskIds: rows.map((r) => r.taskId) };
+    return { taskIds: rows.map((r: { taskId: number }) => r.taskId) };
   }
 
   async setCompletionForDate(

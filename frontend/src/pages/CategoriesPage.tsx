@@ -1,14 +1,30 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useCategories } from "../useCategories";
 import { toastApiError, toastSuccess } from "../toast";
 import "./categories-page.css";
 import { PencilLine, Trash2 } from "lucide-react";
+import { Pagination } from "../components/Pagination";
 
 export function CategoriesPage() {
   const { user } = useAuth();
   const { categories, loading, error, addCategory, updateCategory, removeCategory } =
     useCategories(user?.id);
+  const pageSize = 10;
+  const [page, setPage] = useState(1);
+
+  const totalItems = categories.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIdx = (page - 1) * pageSize;
+  const pageCategories = categories.slice(startIdx, startIdx + pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [categories.length]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,11 +108,11 @@ export function CategoriesPage() {
                 </tr>
               </thead>
               <tbody>
-                {categories.map((c, idx) => {
+                {pageCategories.map((c, idx) => {
                   const isEditing = editingId === c.id;
                   return (
                     <tr key={c.id}>
-                      <td className="col-num">{idx + 1}</td>
+                      <td className="col-num">{startIdx + idx + 1}</td>
                       <td className="col-category">
                         {isEditing ? (
                           <input
@@ -169,6 +185,15 @@ export function CategoriesPage() {
             </table>
           </div>
         )}
+
+        {categories.length > pageSize ? (
+          <Pagination
+            totalItems={categories.length}
+            pageSize={pageSize}
+            currentPage={page}
+            onPageChange={setPage}
+          />
+        ) : null}
       </section>
     </main>
   );

@@ -11,6 +11,7 @@ import {
   Patch,
   Post,
   ParseIntPipe,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
@@ -97,9 +98,10 @@ export class TasksController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @CurrentUser() user: RequestUser,
-    @Param("id", ParseIntPipe) id: number
+    @Param("id", ParseIntPipe) id: number,
+    @Query("endDate") endDate?: string
   ) {
-    const ok = await this.tasksService.removeForUser(user.userId, id);
+    const ok = await this.tasksService.removeForUser(user.userId, id, endDate);
     if (!ok) {
       throw new NotFoundException("Not found");
     }

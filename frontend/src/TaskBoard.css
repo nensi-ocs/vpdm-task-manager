@@ -86,7 +86,7 @@
 .task-board .task-section {
   margin-bottom: 1rem;
   padding: 0;
-  overflow-x: auto;
+  overflow-x: visible;
 }
 
 .task-board .section-head {
@@ -118,6 +118,15 @@
   border-collapse: collapse;
   background: #fff;
   min-width: 720px;
+}
+
+.task-board .task-table-wrap {
+  overflow-x: auto;
+}
+
+.task-board .pagination {
+  padding: 0.5rem 0.55rem;
+
 }
 
 .task-board .task-table th,

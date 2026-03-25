@@ -102,16 +102,27 @@ export function useTasks(
     []
   );
 
-  const removeTask = useCallback(async (id: number) => {
+  const removeTask = useCallback(async (id: number): Promise<boolean> => {
     setError(null);
     try {
-      await apiDelete(`/tasks/${encodeURIComponent(id)}`);
-      setTasks((prev) => prev.filter((t) => t.id !== id));
+      const endDateParam = selectedDateIso
+        ? `?endDate=${encodeURIComponent(selectedDateIso)}`
+        : "";
+      await apiDelete(`/tasks/${encodeURIComponent(id)}${endDateParam}`);
+      if (selectedDateIso) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, endDate: selectedDateIso } : t))
+        );
+      } else {
+        await reload();
+      }
+      return true;
     } catch (e) {
       setError(errMessage(e));
       toastApiError(e, "Failed to delete task");
+      return false;
     }
-  }, []);
+  }, [reload, selectedDateIso]);
 
   const setTaskCompletionForDate = useCallback(
     async (taskId: number, dateIso: string, completed: boolean) => {

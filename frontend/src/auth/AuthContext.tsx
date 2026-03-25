@@ -16,7 +16,12 @@ type AuthContextValue = {
   loading: boolean;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string
+  ) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -51,14 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }, []);
 
-  const register = useCallback(async (email: string, password: string) => {
+  const register = useCallback(
+    async (
+      email: string,
+      password: string,
+      firstName: string,
+      lastName: string
+    ) => {
     const res = await apiSendJson<{ user: AuthUser }>(
       "/auth/register",
       "POST",
-      { email, password }
+      { email, password, firstName, lastName }
     );
     setUser(res.user);
-  }, []);
+    },
+    []
+  );
 
   const logout = useCallback(async () => {
     try {

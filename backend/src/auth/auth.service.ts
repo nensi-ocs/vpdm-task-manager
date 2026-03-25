@@ -12,7 +12,12 @@ import type { RegisterDto } from "./dto/register.dto";
 
 const BCRYPT_ROUNDS = 12;
 
-export type SafeUser = { id: string; email: string };
+export type SafeUser = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+};
 
 @Injectable()
 export class AuthService {
@@ -28,10 +33,12 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<{ user: SafeUser; token: string }> {
     const email = this.normalizeEmail(dto.email);
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    const firstName = dto.firstName.trim();
+    const lastName = dto.lastName.trim();
     try {
       const user = await this.prisma.user.create({
-        data: { email, passwordHash },
-        select: { id: true, email: true },
+        data: { email, passwordHash, firstName, lastName },
+        select: { id: true, email: true, firstName: true, lastName: true },
       });
       const token = this.signToken(user.id, user.email);
       return { user, token };
@@ -50,7 +57,13 @@ export class AuthService {
     const email = this.normalizeEmail(dto.email);
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, passwordHash: true },
+      select: {
+        id: true,
+        email: true,
+        passwordHash: true,
+        firstName: true,
+        lastName: true,
+      },
     });
     if (!user) {
       throw new UnauthorizedException("Invalid email or password");
@@ -61,7 +74,12 @@ export class AuthService {
     }
     const token = this.signToken(user.id, user.email);
     return {
-      user: { id: user.id, email: user.email },
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
       token,
     };
   }
@@ -69,7 +87,7 @@ export class AuthService {
   async findUserById(id: string): Promise<SafeUser | null> {
     return this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true },
+      select: { id: true, email: true, firstName: true, lastName: true },
     });
   }
 

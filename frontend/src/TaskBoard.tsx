@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "./auth/AuthContext";
 import type { Frequency, Priority, Task } from "./types";
 import { useCategories } from "./useCategories";
@@ -11,6 +11,7 @@ import {
 } from "./vpdmCatalog";
 import "./TaskBoard.css";
 import { FileSpreadsheet, Printer, X } from "lucide-react";
+import { Pagination } from "./components/Pagination";
 
 const WEEKDAYS = [
   "Sunday",
@@ -312,7 +313,7 @@ export function TaskBoard() {
       const url = `/api/export/daily-sheet-print?date=${encodeURIComponent(
         selectedDateIso
       )}`;
-      const win = window.open(url, "_blank", "noopener,noreferrer");
+      window.open(url, "_blank", "noopener,noreferrer");
       // if (!win) {
       //   toastApiError(
       //     new Error("Popup blocked. Please allow popups and try again.")
@@ -595,6 +596,23 @@ function TaskSection({
   onAdd,
   onToggle,
 }: TaskSectionProps) {
+  const pageSize = 10;
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    // When switching date/frequency, reset to the first page for that table.
+    setPage(1);
+  }, [selectedDateIso, frequency]);
+
+  const totalItems = tasks.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const startIdx = (page - 1) * pageSize;
+  const pageTasks = tasks.slice(startIdx, startIdx + pageSize);
+
   return (
     <section className="panel task-section">
       <div className="section-head">
@@ -608,38 +626,49 @@ function TaskSection({
       {tasks.length === 0 ? (
         <p className="empty-row">No {frequency} tasks for this date. Click "Add".</p>
       ) : (
-        <table className="task-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>✓</th>
-              <th>Task</th>
-              <th>Date</th>
-              <th>Category</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map((task, idx) => (
-              <tr
-                key={task.id}
-                className={completedTaskIds.includes(task.id) ? "done" : ""}
-              >
-                <td>{idx + 1}</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={completedTaskIds.includes(task.id)}
-                    onChange={(e) => onToggle(task, e.target.checked)}
-                  />
-                </td>
-                <td>{task.title}</td>
-                <td>{displayDate(task, selectedDateIso)}</td>
-                <td>{task.category ?? "-"}</td>
+        <div className="task-table-wrap">
+          <table className="task-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>✓</th>
+                <th>Task</th>
+                <th>Date</th>
+                <th>Category</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pageTasks.map((task, idx) => (
+                <tr
+                  key={task.id}
+                  className={completedTaskIds.includes(task.id) ? "done" : ""}
+                >
+                  <td>{startIdx + idx + 1}</td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={completedTaskIds.includes(task.id)}
+                      onChange={(e) => onToggle(task, e.target.checked)}
+                    />
+                  </td>
+                  <td>{task.title}</td>
+                  <td>{displayDate(task, selectedDateIso)}</td>
+                  <td>{task.category ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
+
+      {tasks.length > pageSize ? (
+        <Pagination
+          totalItems={tasks.length}
+          pageSize={pageSize}
+          currentPage={page}
+          onPageChange={setPage}
+        />
+      ) : null}
     </section>
   );
 }

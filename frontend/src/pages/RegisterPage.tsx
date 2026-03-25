@@ -7,6 +7,8 @@ import "./auth-pages.css";
 export function RegisterPage() {
   const { register, user, loading } = useAuth();
   const navigate = useNavigate();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,9 +22,16 @@ export function RegisterPage() {
       toastApiError(new Error("Password must be at least 8 characters."));
       return;
     }
+    const fn = firstName.trim();
+    const ln = lastName.trim();
+    if (!fn || !ln) {
+      setError("First name and last name are required.");
+      toastApiError(new Error("First name and last name are required."));
+      return;
+    }
     setBusy(true);
     try {
-      await register(email.trim(), password);
+      await register(email.trim(), password, fn, ln);
       toastSuccess("Registration successful");
       navigate("/", { replace: true });
     } catch (err) {
@@ -53,6 +62,31 @@ export function RegisterPage() {
               {error}
             </p>
           ) : null}
+          <div className="auth-row">
+            <label className="field">
+              <span className="label">First name</span>
+              <input
+                className="input"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="First name"
+                required
+                maxLength={120}
+              />
+            </label>
+            <label className="field">
+              <span className="label">Last name</span>
+              <input
+                className="input"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Last name"
+                required
+                maxLength={120}
+              />
+            </label>
+          </div>
+
           <label className="field">
             <span className="label">Email</span>
             <input

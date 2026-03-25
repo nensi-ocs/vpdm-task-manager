@@ -5,6 +5,8 @@ import type { Task } from "../types";
 import { useCategories } from "../useCategories";
 import { useTasks } from "../useTasks";
 import { toastApiError, toastSuccess } from "../toast";
+import { PencilLine, Trash2 } from "lucide-react";
+import { Pagination } from "../components/Pagination";
 import "./add-task-page.css";
 
 const WEEKDAYS = [
@@ -23,6 +25,15 @@ function defaultWeekday(): (typeof WEEKDAYS)[number] {
 
 function defaultDayOfMonth(): string {
   return String(new Date().getDate());
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(`${iso}T12:00:00.000Z`);
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 type FormState = {
@@ -46,14 +57,20 @@ function emptyForm(frequency: Frequency): FormState {
 export function AddTaskPage() {
   const { user } = useAuth();
   const {
+    tasks,
     loading,
     error,
     addTask,
+    updateTask,
+    removeTask,
   } = useTasks(user?.id);
   const { categories, loading: catsLoading } = useCategories(user?.id);
 
   const [form, setForm] = useState<FormState>(() => emptyForm("daily"));
   const [localError, setLocalError] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const pageSize = 10;
+  const [page, setPage] = useState(1);
 
   const categoryOptions = useMemo(() => {
     return [...categories.map((c) => c.name)].sort((a, b) => a.localeCompare(b));
@@ -62,11 +79,12 @@ export function AddTaskPage() {
   // If DB categories load (or change) and current selection is empty, pick the first DB category.
   // This keeps the dropdown "DB-only" while still allowing smooth creation.
   useEffect(() => {
+    if (editingTaskId !== null) return;
     if (catsLoading) return;
     if (categoryOptions.length === 0) return;
     if (categoryOptions.includes(form.category)) return;
     setForm((prev) => ({ ...prev, category: categoryOptions[0] }));
-  }, [catsLoading, categoryOptions, form.category]);
+  }, [catsLoading, categoryOptions, form.category, editingTaskId]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -91,18 +109,62 @@ export function AddTaskPage() {
         category: form.category.trim() || null,
       };
 
-      await addTask(payload);
+      if (editingTaskId) {
+        await updateTask(editingTaskId, payload);
+        toastSuccess("Task updated");
+      } else {
+        await addTask(payload);
+        toastSuccess("Task added");
+      }
       setForm(emptyForm(form.frequency));
-      toastSuccess("Task added");
+      setEditingTaskId(null);
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Failed to add task");
-      toastApiError(err, "Failed to add task");
+      toastApiError(err, editingTaskId ? "Failed to update task" : "Failed to add task");
     }
   }
 
+  async function onDeleteTask(id: number) {
+    const ok = window.confirm("Stop this task from future days?");
+    if (!ok) return;
+    const deleted = await removeTask(id);
+    if (deleted) toastSuccess("Task stopped");
+  }
+
+  function onEditTask(task: Task) {
+    setEditingTaskId(task.id);
+    setForm({
+      title: task.title,
+      category: task.category ?? "",
+      frequency: task.frequency,
+      repeatWeekday: (task.repeatWeekday as (typeof WEEKDAYS)[number]) ?? defaultWeekday(),
+      repeatDayOfMonth: String(task.repeatDayOfMonth ?? defaultDayOfMonth()),
+    });
+  }
+
+  function resetForm() {
+    setForm(emptyForm(form.frequency));
+    setEditingTaskId(null);
+    setLocalError(null);
+  }
+
+  const totalItems = tasks.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIdx = (page - 1) * pageSize;
+  const pageTasks = tasks.slice(startIdx, startIdx + pageSize);
+
+  useEffect(() => {
+    // Reset table paging when tasks list changes (add/edit/stop/delete).
+    setPage(1);
+  }, [tasks.length]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   return (
     <main className="add-task-page">
-      <section className="panel add-task-panel">
+      <section className="panel add-task-panel add-task-form-panel">
         <h2 className="add-task-title">Add Task</h2>
         <p className="add-task-subtitle">
           Create a new task. It will appear in your Task Manager once saved.
@@ -210,19 +272,88 @@ export function AddTaskPage() {
             <button
               type="button"
               className="btn ghost"
-              onClick={() => setForm(emptyForm(form.frequency))}
+              onClick={resetForm}
               disabled={loading}
             >
-              Cancel
+              {editingTaskId ? "Cancel Edit" : "Cancel"}
             </button>
             <button type="submit" className="btn primary" disabled={loading}>
-              Add Task
+              {editingTaskId ? "Save Changes" : "Add Task"}
             </button>
           </div>
 
           {localError ? <p className="add-task-error">{localError}</p> : null}
           {error ? <p className="add-task-error">{error}</p> : null}
         </form>
+
+      </section>
+
+      <section className="panel add-task-panel add-task-table-panel">
+        <div className="add-task-list-head">
+          <h3>Task List</h3>
+        </div>
+        {tasks.length === 0 ? (
+          <p className="add-task-empty">No tasks yet.</p>
+        ) : (
+          <div className="add-task-table-wrap">
+            <table className="add-task-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Task</th>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageTasks.map((task, idx) => (
+                  <tr key={task.id}>
+                    <td>{startIdx + idx + 1}</td>
+                    <td>{task.title}</td>
+                    <td>{formatDate(task.startDate)}</td>
+                    <td>{task.category ?? "-"}</td>
+                    <td>{task.endDate ? "Stopped" : "Active"}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          type="button"
+                          className="btn ghost sm table-icon-btn"
+                          onClick={() => onEditTask(task)}
+                          disabled={Boolean(task.endDate)}
+                          title={task.endDate ? "Stopped task cannot be edited" : "Edit task"}
+                          aria-label="Edit task"
+                        >
+                          <PencilLine size={15} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost sm table-icon-btn"
+                          onClick={() => void onDeleteTask(task.id)}
+                          disabled={Boolean(task.endDate)}
+                          title={task.endDate ? "Task already stopped" : "Stop task"}
+                          aria-label="Stop task"
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {tasks.length > pageSize ? (
+          <Pagination
+            totalItems={tasks.length}
+            pageSize={pageSize}
+            currentPage={page}
+            onPageChange={setPage}
+          />
+        ) : null}
       </section>
     </main>
   );
