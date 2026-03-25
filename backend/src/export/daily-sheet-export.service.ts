@@ -6,6 +6,14 @@ import { PrismaService } from "../prisma/prisma.service";
 const TICK_EMPTY = "❏";
 const TICK_DONE = "☑";
 
+/**
+ * Some editors/TS servers can cache an older Prisma type definition.
+ * This keeps export/print code type-safe enough while remaining runtime-correct.
+ */
+type TaskSeriesSchedule = TaskSeries & {
+  repeatIntervalDays?: number | null;
+};
+
 /** Same weekday order as `TaskBoard.tsx` */
 const WEEKDAYS = [
   "Sunday",
@@ -50,8 +58,7 @@ const COLOR_FLIPKART_NEW_CLIENT = "DAE9F8";
 const COLOR_HEADERS = "D0D0D0";
 const COLOR_COMMENTS_AND_CATEGORY = "DAF2D0";
 
-/** Merged F:H + tick E, merged J:P + tick I — same as reference workbook */
-const COMMENT_PAIR_ROWS = 9;
+/** Merged F:H + tick E, merged J:P + tick I — row count is dynamic */
 
 /** First four comment lines from `Daily Task .xlsx` (left F:H only; J:P empty like file) */
 const COMMENT_LINE_DEFAULTS = [] as const;
@@ -97,7 +104,7 @@ function isWeekdayOption(
   return val != null && (WEEKDAYS as readonly string[]).includes(val);
 }
 
-function isTaskVisibleOnDate(t: TaskSeries, selectedIso: string): boolean {
+function isTaskVisibleOnDate(t: TaskSeriesSchedule, selectedIso: string): boolean {
   const seriesStartIso = isoDateOnly(t.startDate);
   if (selectedIso < seriesStartIso) return false;
   if (t.endDate && selectedIso > isoDateOnly(t.endDate)) return false;
@@ -165,23 +172,42 @@ function isTaskVisibleOnDate(t: TaskSeries, selectedIso: string): boolean {
     return selectedIso >= firstDueIso;
   }
 
+  if (t.frequency === "interval") {
+    if (typeof t.repeatIntervalDays !== "number" || t.repeatIntervalDays < 1) {
+      return false;
+    }
+    const start = isoToUtcMidday(seriesStartIso);
+    const selected = isoToUtcMidday(selectedIso);
+    const msDay = 24 * 60 * 60 * 1000;
+    const daysDiff = Math.round((selected.getTime() - start.getTime()) / msDay);
+    return daysDiff >= 0 && daysDiff % t.repeatIntervalDays === 0;
+  }
+
+  if (t.frequency === "once") {
+    return selectedIso === seriesStartIso;
+  }
+
   return false;
 }
 
-function sortForSection(tasks: TaskSeries[]): TaskSeries[] {
+function sortForSection(tasks: TaskSeriesSchedule[]): TaskSeriesSchedule[] {
   return [...tasks].sort(
     (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
   );
 }
 
-type Section = { name: string; tasks: TaskSeries[] };
+type Section = { name: string; tasks: TaskSeriesSchedule[] };
 
 function buildSections(
   categoryRows: { name: string }[],
-  tasks: TaskSeries[],
+  tasks: TaskSeriesSchedule[],
   isoDate: string
 ): Section[] {
-  const visible = tasks.filter((t) => isTaskVisibleOnDate(t, isoDate));
+  // "One-time" tasks should not be part of the main Role & Responsibility list
+  // (user wants them in the Comments section instead).
+  const visible = tasks
+    .filter((t) => isTaskVisibleOnDate(t, isoDate))
+    .filter((t) => t.frequency !== "once");
   const catNames = new Set(categoryRows.map((c) => normCat(c.name)));
   const sections: Section[] = [];
 
@@ -411,7 +437,9 @@ function writeCommentDataRow(
   ws: ExcelJS.Worksheet,
   r: number,
   leftText: string,
-  rightText: string
+  rightText: string,
+  leftDone: boolean,
+  rightDone: boolean
 ): void {
   for (const c of [1, 2, 3, 4]) {
     const cell = ws.getCell(r, c);
@@ -420,12 +448,12 @@ function writeCommentDataRow(
   }
 
   const tickE = ws.getCell(r, 5);
-  tickE.value = TICK_EMPTY;
+  tickE.value = leftDone ? TICK_DONE : TICK_EMPTY;
   tickE.alignment = { horizontal: "center", vertical: "middle" };
   applyThinBorder(tickE);
 
   const tickI = ws.getCell(r, 9);
-  tickI.value = TICK_EMPTY;
+  tickI.value = rightDone ? TICK_DONE : TICK_EMPTY;
   tickI.alignment = { horizontal: "center", vertical: "middle" };
   applyThinBorder(tickI);
 
@@ -462,7 +490,12 @@ function writeBlankRowAboveComments(ws: ExcelJS.Worksheet, r: number): void {
   ws.getRow(r).height = 18;
 }
 
-function writeCommentsBlock(ws: ExcelJS.Worksheet, headerRow: number): void {
+function writeCommentsBlock(
+  ws: ExcelJS.Worksheet,
+  headerRow: number,
+  oneTimeTasks: TaskSeriesSchedule[],
+  completedTaskIds: Set<number>
+): void {
   const h = headerRow;
   ws.getRow(h).height = 18;
 
@@ -505,11 +538,29 @@ function writeCommentsBlock(ws: ExcelJS.Worksheet, headerRow: number): void {
     applyThinBorder(ws.getCell(h, c));
   }
 
-  for (let i = 0; i < COMMENT_PAIR_ROWS; i++) {
+  // Dynamic rows:
+  // - If there are no one-time tasks and no defaults, still write 1 empty row.
+  // - If there are tasks, fill them across BOTH comment blocks (left + right).
+  const defaults = [...COMMENT_LINE_DEFAULTS];
+  const tasks = sortForSection(oneTimeTasks);
+  const totalPairs = Math.max(1, Math.ceil(Math.max(tasks.length, defaults.length) / 2));
+
+  for (let i = 0; i < totalPairs; i++) {
     const r = h + 1 + i;
-    const lt =
-      i < COMMENT_LINE_DEFAULTS.length ? COMMENT_LINE_DEFAULTS[i]! : "";
-    writeCommentDataRow(ws, r, lt, "");
+
+    const leftTask = tasks[i * 2];
+    const rightTask = tasks[i * 2 + 1];
+
+    const leftText =
+      leftTask?.title ??
+      (i < defaults.length ? defaults[i]! : "");
+    const rightText =
+      rightTask?.title ?? "";
+
+    const leftDone = leftTask ? completedTaskIds.has(leftTask.id) : false;
+    const rightDone = rightTask ? completedTaskIds.has(rightTask.id) : false;
+
+    writeCommentDataRow(ws, r, leftText, rightText, leftDone, rightDone);
   }
 }
 
@@ -716,6 +767,9 @@ export class DailySheetExportService {
     const completedFuIds = new Set(fuCompletions.map((c) => c.followupClientId));
 
     const sections = buildSections(categories, tasks, isoDate);
+    const oneTimeTasks = tasks.filter(
+      (t) => t.frequency === "once" && isTaskVisibleOnDate(t, isoDate)
+    );
 
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("VPDM Daily Task");
@@ -792,7 +846,7 @@ export class DailySheetExportService {
     writeBlankRowAboveComments(ws, currentRow);
     currentRow += 1;
 
-    writeCommentsBlock(ws, currentRow);
+    writeCommentsBlock(ws, currentRow, oneTimeTasks, completedTaskIds);
 
     ws.views = [{ state: "frozen", ySplit: 3 }];
 
