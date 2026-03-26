@@ -19,7 +19,7 @@ export function LoginPage() {
     try {
       await login(email.trim(), password);
       toastSuccess("Login successful");
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed");
       toastApiError(err, "Sign in failed");
@@ -29,7 +29,7 @@ export function LoginPage() {
   };
 
   if (!loading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

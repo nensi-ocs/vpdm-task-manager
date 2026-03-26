@@ -33,7 +33,7 @@ export function RegisterPage() {
     try {
       await register(email.trim(), password, fn, ln);
       toastSuccess("Registration successful");
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       toastApiError(err, "Registration failed");
@@ -43,7 +43,7 @@ export function RegisterPage() {
   };
 
   if (!loading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

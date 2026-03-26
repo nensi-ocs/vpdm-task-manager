@@ -8,7 +8,8 @@ export function SidebarLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
-  const isTaskMenuActive = location.pathname === "/" || location.pathname === "/add-task";
+  const isTaskMenuActive =
+    location.pathname === "/tasks" || location.pathname === "/add-task";
   const [taskMenuOpen, setTaskMenuOpen] = useState(isTaskMenuActive);
 
   useEffect(() => {
@@ -23,6 +24,13 @@ export function SidebarLayout() {
           <span>VPDM</span>
         </div>
         <nav className="app-nav">
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) => (isActive ? "on" : "")}
+            onClick={() => setMobileOpen(false)}
+          >
+            Dashboard
+          </NavLink>
           <button
             type="button"
             className={`app-nav-parent ${isTaskMenuActive ? "on" : ""}`}
@@ -34,8 +42,7 @@ export function SidebarLayout() {
           {taskMenuOpen ? (
             <div className="app-subnav">
               <NavLink
-                to="/"
-                end
+                to="/tasks"
                 className={({ isActive }) => (isActive ? "on" : "")}
                 onClick={() => setMobileOpen(false)}
               >

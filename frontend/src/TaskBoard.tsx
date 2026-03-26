@@ -522,7 +522,6 @@ export function TaskBoard() {
                       );
                     })}
                   </ul>
-                  <p className="tracker-comments">Comments: ---------------------------</p>
                 </article>
               );
             })}

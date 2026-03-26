@@ -37,6 +37,11 @@
   --gradient-blob: rgba(99, 102, 241, 0.18);
   --gradient-blob-2: rgba(124, 77, 255, 0.12);
 
+  /* Scrollbars (main area + table strips) — same thin look on all viewports */
+  --scrollbar-thumb: rgba(92, 100, 126, 0.4);
+  --scrollbar-thumb-hover: rgba(72, 80, 108, 0.55);
+  --scrollbar-track: rgba(241, 245, 249, 0.65);
+
   font-family: "DM Sans", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -60,6 +65,54 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+.app-body {
+  scrollbar-gutter: stable;
+}
+
+.app-body,
+.dashboard-table-wrap,
+.task-board .task-table-wrap,
+.add-task-table-wrap,
+.categories-table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.app-body::-webkit-scrollbar,
+.dashboard-table-wrap::-webkit-scrollbar,
+.task-board .task-table-wrap::-webkit-scrollbar,
+.add-task-table-wrap::-webkit-scrollbar,
+.categories-table-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.app-body::-webkit-scrollbar-track,
+.dashboard-table-wrap::-webkit-scrollbar-track,
+.task-board .task-table-wrap::-webkit-scrollbar-track,
+.add-task-table-wrap::-webkit-scrollbar-track,
+.categories-table-wrap::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+.app-body::-webkit-scrollbar-thumb,
+.dashboard-table-wrap::-webkit-scrollbar-thumb,
+.task-board .task-table-wrap::-webkit-scrollbar-thumb,
+.add-task-table-wrap::-webkit-scrollbar-thumb,
+.categories-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.app-body::-webkit-scrollbar-thumb:hover,
+.dashboard-table-wrap::-webkit-scrollbar-thumb:hover,
+.task-board .task-table-wrap::-webkit-scrollbar-thumb:hover,
+.add-task-table-wrap::-webkit-scrollbar-thumb:hover,
+.categories-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 button,
