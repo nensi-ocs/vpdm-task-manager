@@ -107,8 +107,7 @@ function buildSections(
   const visible = tasks
     .filter((t) =>
       isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
-    )
-    .filter((t) => t.frequency !== "once");
+    );
 
   const catNames = new Set(categoryRows.map((c) => normCat(c.name)));
   const sections: Section[] = [];
