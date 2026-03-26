@@ -29,6 +29,15 @@ export class TasksController {
     return this.tasksService.findAllForUser(user.userId);
   }
 
+  @Get("completion-dates")
+  findCompletionDatesInRange(
+    @CurrentUser() user: RequestUser,
+    @Query("from") from: string,
+    @Query("to") to: string
+  ) {
+    return this.tasksService.findCompletionDatesInRange(user.userId, from, to);
+  }
+
   @Get("completions/:date")
   findCompletionsForDate(
     @CurrentUser() user: RequestUser,

@@ -218,6 +218,12 @@
   padding: 0.42rem 0.58rem;
 }
 
+.task-board .tracker-card label.done span,
+.task-board .tracker-card label.done em {
+  color: #95a0b1;
+  text-decoration: line-through;
+}
+
 .task-board .tracker-card em {
   margin-left: auto;
   color: #8f99ab;

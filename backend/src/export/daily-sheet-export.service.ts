@@ -3,6 +3,10 @@ import * as ExcelJS from "exceljs";
 import { Buffer } from "buffer";
 import type { FollowupClient, TaskSeries } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import {
+  isOccurrenceCompletedInWindow,
+  isTaskVisibleWithCarryForward,
+} from "../tasks/task-schedule.util";
 
 const TICK_EMPTY = "❏";
 const TICK_DONE = "☑";
@@ -10,17 +14,6 @@ const TICK_DONE = "☑";
 type TaskSeriesSchedule = TaskSeries & {
   repeatIntervalDays?: number | null;
 };
-
-/** Same weekday order as `TaskBoard.tsx` */
-const WEEKDAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
 
 const VPDM_TRACKS = [
   "Amazon Client Followup",
@@ -70,120 +63,33 @@ function fillHexSolid(cell: ExcelJS.Cell, rgbHex: string): void {
   };
 }
 
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-function isoDateOnly(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function isoToUtcMidday(iso: string): Date {
-  return new Date(`${iso}T12:00:00.000Z`);
-}
-
-function addDaysUtc(utcDate: Date, days: number): Date {
-  return new Date(utcDate.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
-function lastDayOfMonthUTC(year: number, month0: number): number {
-  return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
-}
-
 function normCat(s: string | null | undefined): string {
   return (s ?? "").trim().toLowerCase();
 }
 
-function isWeekdayOption(
-  val: string | null | undefined
-): val is (typeof WEEKDAYS)[number] {
-  return val != null && (WEEKDAYS as readonly string[]).includes(val);
+function buildTaskCompletionDatesMap(
+  rows: { taskId: number; date: Date }[]
+): Map<number, Set<string>> {
+  const m = new Map<number, Set<string>>();
+  for (const r of rows) {
+    const iso = r.date.toISOString().slice(0, 10);
+    let s = m.get(r.taskId);
+    if (!s) {
+      s = new Set();
+      m.set(r.taskId, s);
+    }
+    s.add(iso);
+  }
+  return m;
 }
 
-function isTaskVisibleOnDate(t: TaskSeriesSchedule, selectedIso: string): boolean {
-  const seriesStartIso = isoDateOnly(t.startDate);
-  if (selectedIso < seriesStartIso) return false;
-  if (t.endDate && selectedIso > isoDateOnly(t.endDate)) return false;
-
-  if (t.frequency === "daily") return true;
-
-  if (t.frequency === "weekly") {
-    if (!isWeekdayOption(t.repeatWeekday)) return false;
-
-    const startDate = isoToUtcMidday(seriesStartIso);
-    const startDow = startDate.getUTCDay();
-    const targetDow = WEEKDAYS.indexOf(t.repeatWeekday);
-    const diff = (targetDow - startDow + 7) % 7;
-    const firstDue = addDaysUtc(startDate, diff);
-
-    const selectedDate = isoToUtcMidday(selectedIso);
-    const msDay = 24 * 60 * 60 * 1000;
-    const daysDiff = Math.round(
-      (selectedDate.getTime() - firstDue.getTime()) / msDay
-    );
-    return daysDiff >= 0 && daysDiff % 7 === 0;
+function minTaskSeriesStartIso(tasks: TaskSeriesSchedule[], selectedIso: string): string {
+  let min = selectedIso;
+  for (const t of tasks) {
+    const s = t.startDate.toISOString().slice(0, 10);
+    if (t.frequency !== "daily" && s < min) min = s;
   }
-
-  if (t.frequency === "monthly") {
-    if (typeof t.repeatDayOfMonth !== "number") return false;
-    const repeatDom = t.repeatDayOfMonth;
-
-    const selectedDate = isoToUtcMidday(selectedIso);
-    const selectedYear = selectedDate.getUTCFullYear();
-    const selectedMonth0 = selectedDate.getUTCMonth();
-
-    const expectedDueDay = Math.min(
-      repeatDom,
-      lastDayOfMonthUTC(selectedYear, selectedMonth0)
-    );
-    const expectedIso = `${selectedYear}-${pad2(
-      selectedMonth0 + 1
-    )}-${pad2(expectedDueDay)}`;
-    if (expectedIso !== selectedIso) return false;
-
-    const startDate = isoToUtcMidday(seriesStartIso);
-    const startYear = startDate.getUTCFullYear();
-    const startMonth0 = startDate.getUTCMonth();
-
-    const startDueDay = Math.min(
-      repeatDom,
-      lastDayOfMonthUTC(startYear, startMonth0)
-    );
-    const startDueIso = `${startYear}-${pad2(startMonth0 + 1)}-${pad2(
-      startDueDay
-    )}`;
-
-    let firstDueIso = startDueIso;
-    if (startDueIso < seriesStartIso) {
-      const next = new Date(Date.UTC(startYear, startMonth0 + 1, 1));
-      const nextYear = next.getUTCFullYear();
-      const nextMonth0 = next.getUTCMonth();
-      const nextDueDay = Math.min(
-        repeatDom,
-        lastDayOfMonthUTC(nextYear, nextMonth0)
-      );
-      firstDueIso = `${nextYear}-${pad2(nextMonth0 + 1)}-${pad2(nextDueDay)}`;
-    }
-
-    return selectedIso >= firstDueIso;
-  }
-
-  if (t.frequency === "interval") {
-    if (typeof t.repeatIntervalDays !== "number" || t.repeatIntervalDays < 1) {
-      return false;
-    }
-    const start = isoToUtcMidday(seriesStartIso);
-    const selected = isoToUtcMidday(selectedIso);
-    const msDay = 24 * 60 * 60 * 1000;
-    const daysDiff = Math.round((selected.getTime() - start.getTime()) / msDay);
-    return daysDiff >= 0 && daysDiff % t.repeatIntervalDays === 0;
-  }
-
-  if (t.frequency === "once") {
-    return selectedIso === seriesStartIso;
-  }
-
-  return false;
+  return min;
 }
 
 function sortForSection(tasks: TaskSeriesSchedule[]): TaskSeriesSchedule[] {
@@ -195,10 +101,13 @@ function sortForSection(tasks: TaskSeriesSchedule[]): TaskSeriesSchedule[] {
 function buildSections(
   categoryRows: { name: string }[],
   tasks: TaskSeriesSchedule[],
-  isoDate: string
+  isoDate: string,
+  completionDatesByTaskId: Map<number, Set<string>>
 ): Section[] {
   const visible = tasks
-    .filter((t) => isTaskVisibleOnDate(t, isoDate))
+    .filter((t) =>
+      isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
+    )
     .filter((t) => t.frequency !== "once");
 
   const catNames = new Set(categoryRows.map((c) => normCat(c.name)));
@@ -437,7 +346,8 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
 
 function buildCommentPairs(
   oneTimeTasks: TaskSeriesSchedule[],
-  completedTaskIds: Set<number>
+  isoDate: string,
+  completionDatesByTaskId: Map<number, Set<string>>
 ): CommentPair[] {
   const defaults = [...COMMENT_LINE_DEFAULTS];
   const tasks = sortForSection(oneTimeTasks);
@@ -455,8 +365,12 @@ function buildCommentPairs(
     pairs.push({
       leftText: leftTask?.title ?? (i < defaults.length ? defaults[i]! : ""),
       rightText: rightTask?.title ?? "",
-      leftDone: leftTask ? completedTaskIds.has(leftTask.id) : false,
-      rightDone: rightTask ? completedTaskIds.has(rightTask.id) : false,
+      leftDone: leftTask
+        ? isOccurrenceCompletedInWindow(leftTask, isoDate, completionDatesByTaskId)
+        : false,
+      rightDone: rightTask
+        ? isOccurrenceCompletedInWindow(rightTask, isoDate, completionDatesByTaskId)
+        : false,
     });
   }
 
@@ -729,38 +643,54 @@ export class DailySheetExportService {
 
     const day = new Date(`${isoDate}T12:00:00.000Z`);
 
-    const [categories, tasks, completions, followups, fuCompletions] =
-      await Promise.all([
-        this.prisma.category.findMany({
-          where: { userId },
-          orderBy: { name: "asc" },
-        }),
-        this.prisma.taskSeries.findMany({ where: { userId } }),
-        this.prisma.taskCompletion.findMany({
-          where: {
-            date: day,
-            taskSeries: { userId },
-          },
-          select: { taskId: true },
-        }),
-        this.prisma.followupClient.findMany({ where: { userId } }),
-        this.prisma.followupCompletion.findMany({
-          where: {
-            date: day,
-            followupClient: { userId },
-          },
-          select: { followupClientId: true },
-        }),
-      ]);
+    const [categories, tasks, followups, fuCompletions] = await Promise.all([
+      this.prisma.category.findMany({
+        where: { userId },
+        orderBy: { name: "asc" },
+      }),
+      this.prisma.taskSeries.findMany({ where: { userId } }),
+      this.prisma.followupClient.findMany({ where: { userId } }),
+      this.prisma.followupCompletion.findMany({
+        where: {
+          date: day,
+          followupClient: { userId },
+        },
+        select: { followupClientId: true },
+      }),
+    ]);
 
-    const completedTaskIds = new Set(completions.map((c) => c.taskId));
+    const fromDay = new Date(
+      `${minTaskSeriesStartIso(tasks, isoDate)}T12:00:00.000Z`
+    );
+    const taskCompletionsInRange = await this.prisma.taskCompletion.findMany({
+      where: {
+        taskSeries: { userId },
+        date: { gte: fromDay, lte: day },
+      },
+      select: { taskId: true, date: true },
+    });
+    const completionDatesByTaskId = buildTaskCompletionDatesMap(
+      taskCompletionsInRange
+    );
+
     const completedFuIds = new Set(fuCompletions.map((c) => c.followupClientId));
 
-    const sections = buildSections(categories, tasks, isoDate);
-    const oneTimeTasks = tasks.filter(
-      (t) => t.frequency === "once" && isTaskVisibleOnDate(t, isoDate)
+    const sections = buildSections(
+      categories,
+      tasks,
+      isoDate,
+      completionDatesByTaskId
     );
-    const commentPairs = buildCommentPairs(oneTimeTasks, completedTaskIds);
+    const oneTimeTasks = tasks.filter(
+      (t) =>
+        t.frequency === "once" &&
+        isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
+    );
+    const commentPairs = buildCommentPairs(
+      oneTimeTasks,
+      isoDate,
+      completionDatesByTaskId
+    );
 
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("VPDM Daily Task");
@@ -845,9 +775,14 @@ export class DailySheetExportService {
         seq += 1;
 
         if (task) {
-          ws.getCell(currentRow, 2).value = completedTaskIds.has(task.id)
-            ? TICK_DONE
-            : TICK_EMPTY;
+          ws.getCell(currentRow, 2).value =
+            isOccurrenceCompletedInWindow(
+              task,
+              isoDate,
+              completionDatesByTaskId
+            )
+              ? TICK_DONE
+              : TICK_EMPTY;
           ws.getCell(currentRow, 3).value = task.title;
         } else {
           ws.getCell(currentRow, 2).value = TICK_EMPTY;

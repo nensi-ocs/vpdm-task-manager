@@ -360,6 +360,12 @@
   cursor: pointer;
 }
 
+.dashboard-tracker-card label.done span,
+.dashboard-tracker-card label.done em {
+  color: #95a0b1;
+  text-decoration: line-through;
+}
+
 .dashboard-tracker-card em {
   margin-left: auto;
   color: #8f99ab;

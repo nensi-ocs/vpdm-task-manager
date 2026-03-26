@@ -7,16 +7,12 @@ import { VPDM_TRACKS } from "../vpdmCatalog";
 import type { Task } from "../types";
 import "./dashboard-page.css";
 import { Pagination } from "../components/Pagination";
-
-const WEEKDAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
+import {
+  formatTaskOccurrenceDateLabel,
+  formatTaskCompletedDateLabel,
+  getTaskCompletedIsoForSelectedWindow,
+  isTaskVisibleWithCarryForward,
+} from "../taskSchedule";
 
 function ymdInKolkata(date: Date): string {
   const fmt = new Intl.DateTimeFormat("en-US", {
@@ -34,28 +30,6 @@ function ymdInKolkata(date: Date): string {
 
 function todayIsoKolkata(): string {
   return ymdInKolkata(new Date());
-}
-
-function isoToUtcMidday(iso: string): Date {
-  return new Date(`${iso}T12:00:00.000Z`);
-}
-
-function addDaysUtc(utcDate: Date, days: number): Date {
-  return new Date(utcDate.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-function lastDayOfMonthUTC(year: number, month0: number): number {
-  return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
-}
-
-function isWeekdayOption(
-  val: string | null
-): val is (typeof WEEKDAYS)[number] {
-  return val !== null && (WEEKDAYS as readonly string[]).includes(val);
 }
 
 function sortForList(list: Task[]): Task[] {
@@ -90,8 +64,8 @@ export function DashboardPage() {
   const [selectedDateIso, setSelectedDateIso] = useState<string>(() =>
     todayIsoKolkata()
   );
-  const [taskSearch, setTaskSearch] = useState("");
-  const { tasks, loading, error, completedTaskIds, setTaskCompletionForDate } =
+  const [taskSearch] = useState("");
+  const { tasks, loading, error, completionDatesByTaskId, setTaskCompletionForDate } =
     useTasks(user?.id, selectedDateIso);
   const {
     clients: followupClients,
@@ -109,97 +83,9 @@ export function DashboardPage() {
   const followupPendingCount = followupClients.length - followupCompletedCount;
 
   const tasksForSelectedDate = useCallback(
-    (t: Task) => {
-      const seriesStartIso = t.startDate;
-      if (selectedDateIso < seriesStartIso) return false;
-      if (t.endDate && selectedDateIso > t.endDate) return false;
-
-      if (t.frequency === "daily") return true;
-
-      if (t.frequency === "weekly") {
-        if (!isWeekdayOption(t.repeatWeekday)) return false;
-
-        const startDate = isoToUtcMidday(seriesStartIso);
-        const startDow = startDate.getUTCDay();
-        const targetDow = WEEKDAYS.indexOf(t.repeatWeekday);
-        const diff = (targetDow - startDow + 7) % 7;
-        const firstDue = addDaysUtc(startDate, diff);
-
-        const selectedDate = isoToUtcMidday(selectedDateIso);
-        const msDay = 24 * 60 * 60 * 1000;
-        const daysDiff = Math.round(
-          (selectedDate.getTime() - firstDue.getTime()) / msDay
-        );
-        return daysDiff >= 0 && daysDiff % 7 === 0;
-      }
-
-      if (t.frequency === "monthly") {
-        if (typeof t.repeatDayOfMonth !== "number") return false;
-        const repeatDom = t.repeatDayOfMonth;
-
-        const selectedDate = isoToUtcMidday(selectedDateIso);
-        const selectedYear = selectedDate.getUTCFullYear();
-        const selectedMonth0 = selectedDate.getUTCMonth();
-
-        const expectedDueDay = Math.min(
-          repeatDom,
-          lastDayOfMonthUTC(selectedYear, selectedMonth0)
-        );
-        const expectedIso = `${selectedYear}-${pad2(
-          selectedMonth0 + 1
-        )}-${pad2(expectedDueDay)}`;
-        if (expectedIso !== selectedDateIso) return false;
-
-        const startDate = isoToUtcMidday(seriesStartIso);
-        const startYear = startDate.getUTCFullYear();
-        const startMonth0 = startDate.getUTCMonth();
-
-        const startDueDay = Math.min(
-          repeatDom,
-          lastDayOfMonthUTC(startYear, startMonth0)
-        );
-        const startDueIso = `${startYear}-${pad2(startMonth0 + 1)}-${pad2(
-          startDueDay
-        )}`;
-
-        let firstDueIso = startDueIso;
-        if (startDueIso < seriesStartIso) {
-          const next = new Date(Date.UTC(startYear, startMonth0 + 1, 1));
-          const nextYear = next.getUTCFullYear();
-          const nextMonth0 = next.getUTCMonth();
-          const nextDueDay = Math.min(
-            repeatDom,
-            lastDayOfMonthUTC(nextYear, nextMonth0)
-          );
-          firstDueIso = `${nextYear}-${pad2(nextMonth0 + 1)}-${pad2(nextDueDay)}`;
-        }
-
-        return selectedDateIso >= firstDueIso;
-      }
-
-      if (t.frequency === "interval") {
-        if (
-          typeof t.repeatIntervalDays !== "number" ||
-          t.repeatIntervalDays < 1
-        ) {
-          return false;
-        }
-        const start = isoToUtcMidday(seriesStartIso);
-        const selected = isoToUtcMidday(selectedDateIso);
-        const msDay = 24 * 60 * 60 * 1000;
-        const daysDiff = Math.round(
-          (selected.getTime() - start.getTime()) / msDay
-        );
-        return daysDiff >= 0 && daysDiff % t.repeatIntervalDays === 0;
-      }
-
-      if (t.frequency === "once") {
-        return selectedDateIso === seriesStartIso;
-      }
-
-      return false;
-    },
-    [selectedDateIso]
+    (t: Task) =>
+      isTaskVisibleWithCarryForward(t, selectedDateIso, completionDatesByTaskId),
+    [selectedDateIso, completionDatesByTaskId]
   );
 
   const visibleTasks = useMemo(
@@ -207,7 +93,18 @@ export function DashboardPage() {
     [tasks, tasksForSelectedDate]
   );
 
-  const completedSet = useMemo(() => new Set(completedTaskIds), [completedTaskIds]);
+  const doneIsoByTaskId = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const t of visibleTasks) {
+      const iso = getTaskCompletedIsoForSelectedWindow(
+        t,
+        selectedDateIso,
+        completionDatesByTaskId
+      );
+      if (iso) m.set(t.id, iso);
+    }
+    return m;
+  }, [completionDatesByTaskId, selectedDateIso, visibleTasks]);
 
   const taskQueryLower = useMemo(() => taskSearch.trim().toLowerCase(), [taskSearch]);
 
@@ -217,21 +114,21 @@ export function DashboardPage() {
   );
 
   const rawIncompleteForDate = useMemo(
-    () => visibleTasks.filter((t) => !completedSet.has(t.id)),
-    [completedSet, visibleTasks]
+    () => visibleTasks.filter((t) => !doneIsoByTaskId.has(t.id)),
+    [doneIsoByTaskId, visibleTasks]
   );
   const rawCompletedForDate = useMemo(
-    () => visibleTasks.filter((t) => completedSet.has(t.id)),
-    [completedSet, visibleTasks]
+    () => visibleTasks.filter((t) => doneIsoByTaskId.has(t.id)),
+    [doneIsoByTaskId, visibleTasks]
   );
 
   const incompleteTasks = useMemo(
-    () => filteredVisibleTasks.filter((t) => !completedSet.has(t.id)),
-    [completedSet, filteredVisibleTasks]
+    () => filteredVisibleTasks.filter((t) => !doneIsoByTaskId.has(t.id)),
+    [doneIsoByTaskId, filteredVisibleTasks]
   );
   const completedTasks = useMemo(
-    () => filteredVisibleTasks.filter((t) => completedSet.has(t.id)),
-    [completedSet, filteredVisibleTasks]
+    () => filteredVisibleTasks.filter((t) => doneIsoByTaskId.has(t.id)),
+    [doneIsoByTaskId, filteredVisibleTasks]
   );
 
   const pageSize = 10;
@@ -351,7 +248,8 @@ export function DashboardPage() {
                     <th>#</th>
                     <th>✓</th>
                     <th>Task</th>
-                    <th>Date</th>
+                    <th>Scheduled</th>
+                    <th>Completed on</th>
                     <th>Category</th>
                     <th>Frequency</th>
                   </tr>
@@ -374,7 +272,14 @@ export function DashboardPage() {
                         />
                       </td>
                       <td>{t.title}</td>
-                      <td>{displayDate(selectedDateIso)}</td>
+                      <td>{formatTaskOccurrenceDateLabel(t, selectedDateIso)}</td>
+                      <td>
+                        {formatTaskCompletedDateLabel(
+                          t,
+                          selectedDateIso,
+                          completionDatesByTaskId
+                        )}
+                      </td>
                       <td>{t.category ?? "-"}</td>
                       <td className="dash-freq">{t.frequency.toUpperCase()}</td>
                     </tr>
@@ -415,7 +320,8 @@ export function DashboardPage() {
                     <th>#</th>
                     <th>✓</th>
                     <th>Task</th>
-                    <th>Date</th>
+                    <th>Scheduled</th>
+                    <th>Completed on</th>
                     <th>Category</th>
                     <th>Frequency</th>
                   </tr>
@@ -438,7 +344,14 @@ export function DashboardPage() {
                         />
                       </td>
                       <td>{t.title}</td>
-                      <td>{displayDate(selectedDateIso)}</td>
+                      <td>{formatTaskOccurrenceDateLabel(t, selectedDateIso)}</td>
+                      <td>
+                        {formatTaskCompletedDateLabel(
+                          t,
+                          selectedDateIso,
+                          completionDatesByTaskId
+                        )}
+                      </td>
                       <td>{t.category ?? "-"}</td>
                       <td className="dash-freq">{t.frequency.toUpperCase()}</td>
                     </tr>
@@ -518,7 +431,7 @@ export function DashboardPage() {
                           const checked = completedClientIds.includes(entry.id);
                           return (
                             <li key={`${track}-${entry.id}`}>
-                              <label>
+                              <label className={checked ? "done" : ""}>
                                 <input
                                   type="checkbox"
                                   checked={checked}

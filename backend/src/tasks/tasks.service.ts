@@ -305,6 +305,35 @@ export class TasksService {
     return { taskIds: rows.map((r: { taskId: number }) => r.taskId) };
   }
 
+  /** Task completions with dates in [from, to] (inclusive), for carry-forward visibility. */
+  async findCompletionDatesInRange(
+    userId: string,
+    from: string,
+    to: string
+  ): Promise<{ items: { taskId: number; date: string }[] }> {
+    if (!isIsoDate(from) || !isIsoDate(to)) {
+      throw new BadRequestException("from and to must be YYYY-MM-DD");
+    }
+    if (from > to) {
+      throw new BadRequestException("from must be <= to");
+    }
+    const fromDay = new Date(`${from}T12:00:00.000Z`);
+    const toDay = new Date(`${to}T12:00:00.000Z`);
+    const rows = await this.prisma.taskCompletion.findMany({
+      where: {
+        taskSeries: { userId },
+        date: { gte: fromDay, lte: toDay },
+      },
+      select: { taskId: true, date: true },
+    });
+    return {
+      items: rows.map((r: { taskId: number; date: Date }) => ({
+        taskId: r.taskId,
+        date: r.date.toISOString().slice(0, 10),
+      })),
+    };
+  }
+
   async setCompletionForDate(
     userId: string,
     taskId: number,
