@@ -71,6 +71,13 @@ export function SidebarLayout() {
           >
             Client Followup
           </NavLink>
+          <NavLink
+            to="/pipeline-clients"
+            className={({ isActive }) => (isActive ? "on" : "")}
+            onClick={() => setMobileOpen(false)}
+          >
+            Client Pipeline
+          </NavLink>
         </nav>
       </aside>
       {mobileOpen ? (

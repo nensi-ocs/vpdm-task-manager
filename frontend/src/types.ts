@@ -38,3 +38,21 @@ export type FollowupClient = {
   owner: string | null;
   createdAt: string;
 };
+
+export type PipelineStage = {
+  key: string;
+  label: string;
+  order: number;
+};
+
+export type PipelineClient = {
+  id: string;
+  clientName: string;
+  source: string;
+  stage: string;
+  stageLabel: string;
+  stageOrder: number;
+  lostReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};

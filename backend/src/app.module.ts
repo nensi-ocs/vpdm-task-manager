@@ -5,6 +5,7 @@ import { AuthModule } from "./auth/auth.module";
 import { CategoriesModule } from "./categories/categories.module";
 import { FollowupClientsModule } from "./followup-clients/followup-clients.module";
 import { HealthModule } from "./health/health.module";
+import { PipelineClientsModule } from "./pipeline-clients/pipeline-clients.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { ExportModule } from "./export/export.module";
@@ -19,6 +20,7 @@ import { ExportModule } from "./export/export.module";
     AuthModule,
     CategoriesModule,
     FollowupClientsModule,
+    PipelineClientsModule,
     HealthModule,
     TasksModule,
     ExportModule,

@@ -9,6 +9,7 @@ import { SidebarLayout } from "./layout/SidebarLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
 import { FollowupClientsPage } from "./pages/FollowupClientsPage";
+import { PipelineClientsPage } from "./pages/PipelineClientsPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { TaskBoard } from "./TaskBoard";
 import { AddTaskPage } from "./pages/AddTaskPage";
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="add-task" element={<AddTaskPage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="followup-clients" element={<FollowupClientsPage />} />
+            <Route path="pipeline-clients" element={<PipelineClientsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

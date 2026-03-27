@@ -43,13 +43,50 @@
   color: var(--text-muted);
 }
 
+/* Match pipeline client table strip: flex + no vertical gutter + themed scrollbar */
 .categories-table-wrap {
+  display: flex;
+  flex-direction: column;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.categories-table-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.categories-table-wrap::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+.categories-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.categories-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 .categories-table {
+  flex: 0 0 auto;
   width: 100%;
   border-collapse: collapse;
+  background: #fff;
+  min-width: 720px;
+}
+
+@media (min-width: 900px) {
+  .categories-table {
+    min-width: 820px;
+  }
 }
 
 .categories-table th,
@@ -57,6 +94,10 @@
   border-bottom: 1px solid var(--border);
   padding: 0.55rem;
   text-align: left;
+}
+
+.categories-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .categories-table th {
@@ -100,9 +141,5 @@
 
   .category-add-form .input {
     min-width: 100%;
-  }
-
-  .categories-table {
-    min-width: 560px;
   }
 }

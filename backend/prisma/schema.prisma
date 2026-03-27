@@ -17,6 +17,7 @@ model User {
   taskSeries   TaskSeries[]
   categories   Category[]
   followupClients FollowupClient[]
+  pipelineClients PipelineClient[]
 
   @@map("users")
 }
@@ -64,6 +65,33 @@ model FollowupCompletion {
   @@index([date], map: "idx_followup_completions_date")
   @@index([followupClientId], map: "idx_followup_completions_client_id")
   @@map("followup_completions")
+}
+
+model PipelineClient {
+  id         String   @id @default(uuid()) @db.Uuid
+  clientName String   @map("client_name") @db.VarChar(200)
+  /// Lead source / reference (ads, whatsapp, etc.)
+  source     String   @default("unknown") @db.VarChar(40)
+
+  /// Canonical stage key, e.g. "lead_generated"
+  stage      String   @db.VarChar(40)
+  /// Enforces ordered progression; derived from stage list.
+  stageOrder Int      @map("stage_order")
+
+  /// Used when stage == "deal_lost"
+  lostReason String?  @map("lost_reason") @db.VarChar(300)
+
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_pipeline_clients_user_id")
+  @@index([stage], map: "idx_pipeline_clients_stage")
+  @@index([stageOrder], map: "idx_pipeline_clients_stage_order")
+  @@unique([userId, clientName], map: "uq_pipeline_clients_user_client_name")
+  @@map("pipeline_clients")
 }
 
 model TaskSeries {

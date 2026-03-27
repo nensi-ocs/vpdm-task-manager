@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import * as ExcelJS from "exceljs";
 import { Buffer } from "buffer";
 import type { FollowupClient, TaskSeries } from "@prisma/client";
+import { PipelineClientsService } from "../pipeline-clients/pipeline-clients.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   isOccurrenceCompletedInWindow,
@@ -71,6 +72,7 @@ function buildTaskCompletionDatesMap(
   rows: { taskId: number; date: Date }[]
 ): Map<number, Set<string>> {
   const m = new Map<number, Set<string>>();
+
   for (const r of rows) {
     const iso = r.date.toISOString().slice(0, 10);
     let s = m.get(r.taskId);
@@ -80,15 +82,21 @@ function buildTaskCompletionDatesMap(
     }
     s.add(iso);
   }
+
   return m;
 }
 
-function minTaskSeriesStartIso(tasks: TaskSeriesSchedule[], selectedIso: string): string {
+function minTaskSeriesStartIso(
+  tasks: TaskSeriesSchedule[],
+  selectedIso: string
+): string {
   let min = selectedIso;
+
   for (const t of tasks) {
     const s = t.startDate.toISOString().slice(0, 10);
     if (t.frequency !== "daily" && s < min) min = s;
   }
+
   return min;
 }
 
@@ -104,10 +112,9 @@ function buildSections(
   isoDate: string,
   completionDatesByTaskId: Map<number, Set<string>>
 ): Section[] {
-  const visible = tasks
-    .filter((t) =>
-      isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
-    );
+  const visible = tasks.filter((t) =>
+    isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
+  );
 
   const catNames = new Set(categoryRows.map((c) => normCat(c.name)));
   const sections: Section[] = [];
@@ -125,6 +132,7 @@ function buildSections(
       return !n || !catNames.has(n);
     })
   );
+
   if (orphans.length > 0) {
     sections.push({ name: "Uncategorized", tasks: orphans });
   }
@@ -156,6 +164,7 @@ function clientsForTrack(
   track: string
 ): FollowupClient[] {
   const want = normTrack(track);
+
   return followups
     .filter((f) => normTrack(f.track) === want)
     .sort((a, b) => a.clientName.localeCompare(b.clientName));
@@ -209,6 +218,7 @@ function fillRowFollowup(
       horizontal: "center",
       vertical: "middle",
     };
+
     ws.getCell(r, nameCol).alignment = {
       horizontal: "left",
       vertical: "middle",
@@ -227,6 +237,7 @@ function applyColumnWidths(ws: ExcelJS.Worksheet): void {
   ws.getColumn(2).width = 13;
   ws.getColumn(3).width = 44;
   ws.getColumn(4).width = 3;
+
   for (let c = 5; c <= 16; c++) {
     ws.getColumn(c).width = c % 2 === 1 ? 13 : 24;
   }
@@ -244,11 +255,13 @@ const TRACK_HEADER_HEX: readonly string[] = [
 function excelColLetter(col: number): string {
   let n = col;
   let s = "";
+
   while (n > 0) {
     const m = (n - 1) % 26;
     s = String.fromCharCode(65 + m) + s;
     n = Math.floor((n - 1) / 26);
   }
+
   return s;
 }
 
@@ -365,10 +378,18 @@ function buildCommentPairs(
       leftText: leftTask?.title ?? (i < defaults.length ? defaults[i]! : ""),
       rightText: rightTask?.title ?? "",
       leftDone: leftTask
-        ? isOccurrenceCompletedInWindow(leftTask, isoDate, completionDatesByTaskId)
+        ? isOccurrenceCompletedInWindow(
+            leftTask,
+            isoDate,
+            completionDatesByTaskId
+          )
         : false,
       rightDone: rightTask
-        ? isOccurrenceCompletedInWindow(rightTask, isoDate, completionDatesByTaskId)
+        ? isOccurrenceCompletedInWindow(
+            rightTask,
+            isoDate,
+            completionDatesByTaskId
+          )
         : false,
     });
   }
@@ -376,11 +397,6 @@ function buildCommentPairs(
   return pairs;
 }
 
-/**
- * Header row:
- * Amazon comments header spans E:J
- * Flipkart comments header spans K:P
- */
 function writeInlineCommentsHeader(ws: ExcelJS.Worksheet, r: number): void {
   ws.mergeCells(`E${r}:J${r}`);
   ws.mergeCells(`K${r}:P${r}`);
@@ -403,16 +419,6 @@ function writeInlineCommentsHeader(ws: ExcelJS.Worksheet, r: number): void {
   ws.getRow(r).height = 18;
 }
 
-/**
- * Data row:
- * Amazon comment uses:
- *   E = tick
- *   F:J = text
- *
- * Flipkart comment uses:
- *   K = tick
- *   L:P = text
- */
 function writeInlineCommentData(
   ws: ExcelJS.Worksheet,
   r: number,
@@ -483,6 +489,7 @@ function parseA1Range(a1: string): {
 } | null {
   const m = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i.exec(a1);
   if (!m) return null;
+
   return {
     c1: colLettersToNumber(m[1]),
     r1: Number(m[2]),
@@ -497,7 +504,10 @@ function borderCssSide(b: ExcelJS.Border | undefined): string {
   return "1px solid #000";
 }
 
-function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): string {
+function buildHtmlTableFromWorksheet(
+  ws: ExcelJS.Worksheet,
+  maxCol: number
+): string {
   const merges = ws.model.merges ?? [];
   const mergeByMaster = new Map<string, { rowSpan: number; colSpan: number }>();
   const mergedCovered = new Set<string>();
@@ -505,11 +515,13 @@ function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): stri
   for (const m of merges) {
     const parsed = parseA1Range(m);
     if (!parsed) continue;
+
     const { r1, c1, r2, c2 } = parsed;
     mergeByMaster.set(`${r1}:${c1}`, {
       rowSpan: r2 - r1 + 1,
       colSpan: c2 - c1 + 1,
     });
+
     for (let r = r1; r <= r2; r++) {
       for (let c = c1; c <= c2; c++) {
         if (r === r1 && c === c1) continue;
@@ -519,25 +531,9 @@ function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): stri
   }
 
   const lines: string[] = [];
-  lines.push("<!doctype html>");
-  lines.push("<html><head><meta charset=\"utf-8\" />");
-  lines.push(`<title>${escapeHtml(title)}</title>`);
-  lines.push("<style>");
-  lines.push("@page { size: A4 landscape; margin: 6mm; }");
-  lines.push("body { font-family: Arial, sans-serif; margin: 0; background:#fff; color:#000; }");
-  lines.push("#print-root { width: 100%; }");
-  lines.push("#sheet-wrap { transform-origin: top left; width: max-content; }");
-  lines.push("table { border-collapse: collapse; table-layout: fixed; }");
-  lines.push("td { font-size: 11px; padding: 1px 3px; vertical-align: middle; word-wrap: break-word; background:#fff; color:#000; }");
-  lines.push("@media print { .no-print { display: none; } }");
-  lines.push("</style></head><body>");
-  lines.push("<div class=\"no-print\" style=\"margin:8px 0;\">");
-  lines.push("<button onclick=\"window.print()\">Print</button>");
-  lines.push("</div>");
-  lines.push("<div id=\"print-root\"><div id=\"sheet-wrap\"><table>");
+  lines.push("<table>");
 
   const maxRow = ws.rowCount;
-  const maxCol = LAST_COL;
 
   for (let r = 1; r <= maxRow; r++) {
     lines.push("<tr>");
@@ -549,8 +545,12 @@ function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): stri
       const merge = mergeByMaster.get(key);
       const attrs: string[] = [];
 
-      if (merge?.rowSpan && merge.rowSpan > 1) attrs.push(`rowspan="${merge.rowSpan}"`);
-      if (merge?.colSpan && merge.colSpan > 1) attrs.push(`colspan="${merge.colSpan}"`);
+      if (merge?.rowSpan && merge.rowSpan > 1) {
+        attrs.push(`rowspan="${merge.rowSpan}"`);
+      }
+      if (merge?.colSpan && merge.colSpan > 1) {
+        attrs.push(`colspan="${merge.colSpan}"`);
+      }
 
       const b = cell.border as {
         top?: ExcelJS.Border;
@@ -577,18 +577,32 @@ function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): stri
         styles.push(`background-color:#${hex}`);
       }
 
-      if (cell.alignment?.horizontal) styles.push(`text-align:${cell.alignment.horizontal}`);
-      if (cell.alignment?.vertical) styles.push(`vertical-align:${cell.alignment.vertical}`);
-      if (cell.alignment?.wrapText) styles.push("white-space: pre-wrap");
-      if (cell.font?.bold) styles.push("font-weight:700");
-      if (typeof cell.font?.size === "number") styles.push(`font-size:${cell.font.size}px`);
+      if (cell.alignment?.horizontal) {
+        styles.push(`text-align:${cell.alignment.horizontal}`);
+      }
+      if (cell.alignment?.vertical) {
+        styles.push(`vertical-align:${cell.alignment.vertical}`);
+      }
+      if (cell.alignment?.wrapText) {
+        styles.push("white-space: pre-wrap");
+      }
+      if (cell.font?.bold) {
+        styles.push("font-weight:700");
+      }
+      if (typeof cell.font?.size === "number") {
+        styles.push(`font-size:${cell.font.size}px`);
+      }
 
       let text = "";
-      if (cell.value == null) text = "";
-      else if (typeof cell.value === "object") {
+      if (cell.value == null) {
+        text = "";
+      } else if (typeof cell.value === "object") {
         if ("richText" in cell.value && Array.isArray(cell.value.richText)) {
           text = cell.value.richText.map((p) => p.text).join("");
-        } else if ("text" in cell.value && typeof cell.value.text === "string") {
+        } else if (
+          "text" in cell.value &&
+          typeof cell.value.text === "string"
+        ) {
           text = cell.value.text;
         } else {
           text = String(cell.text ?? "");
@@ -597,70 +611,302 @@ function buildPrintHtmlFromWorksheet(ws: ExcelJS.Worksheet, title: string): stri
         text = String(cell.value);
       }
 
-      lines.push(`<td ${attrs.join(" ")} style="${styles.join(";")}">${escapeHtml(text)}</td>`);
+      lines.push(
+        `<td ${attrs.join(" ")} style="${styles.join(";")}">${escapeHtml(
+          text
+        )}</td>`
+      );
     }
     lines.push("</tr>");
   }
 
-  lines.push("</table></div></div>");
+  lines.push("</table>");
+  return lines.join("");
+}
+
+function buildPrintHtmlCombined(
+  wsDaily: ExcelJS.Worksheet,
+  docTitle: string
+): string {
+  const lines: string[] = [];
+  lines.push("<!doctype html>");
+  lines.push('<html><head><meta charset="utf-8" />');
+  lines.push(`<title>${escapeHtml(docTitle)}</title>`);
+  lines.push("<style>");
+  lines.push("@page { size: A4 landscape; margin: 6mm; }");
+  lines.push(
+    "body { font-family: Arial, sans-serif; margin: 0; background:#fff; color:#000; }"
+  );
+  lines.push("#print-root { width: 100%; }");
+  lines.push(".sheet-wrap { transform-origin: top left; width: max-content; }");
+  lines.push("table { border-collapse: collapse; table-layout: fixed; }");
+  lines.push(
+    "td { font-size: 11px; padding: 1px 3px; vertical-align: middle; word-wrap: break-word; background:#fff; color:#000; }"
+  );
+  lines.push("@media print { .no-print { display: none; } }");
+  lines.push("</style></head><body>");
+  lines.push('<div class="no-print" style="margin:8px 0;">');
+  lines.push('<button onclick="window.print()">Print</button>');
+  lines.push("</div>");
+  lines.push('<div id="print-root">');
+  lines.push('<div class="sheet-wrap">');
+  lines.push(buildHtmlTableFromWorksheet(wsDaily, LAST_COL));
+  lines.push("</div>");
+  lines.push("</div>");
   lines.push("<script>");
   lines.push("(function(){");
-  lines.push("  function fitOnePage(){");
-  lines.push("    var wrap=document.getElementById('sheet-wrap');");
-  lines.push("    if(!wrap) return;");
-  lines.push("    wrap.style.transform='scale(1)';");
-  lines.push("    var pageW = 1122; var pageH = 793;");
-  lines.push("    var margin = 24;");
-  lines.push("    var targetW = pageW - margin;");
-  lines.push("    var targetH = pageH - margin;");
-  lines.push("    var rect = wrap.getBoundingClientRect();");
-  lines.push("    if(!rect.width || !rect.height) return;");
-  lines.push("    var scaleW = targetW / rect.width;");
-  lines.push("    var scaleH = targetH / rect.height;");
-  lines.push("    var scale = Math.min(scaleW, scaleH, 1);");
-  lines.push("    wrap.style.transform='scale(' + scale + ')';");
+  lines.push("  function fitSheets(){");
+  lines.push(
+    "    var wraps = document.querySelectorAll('#print-root .sheet-wrap');"
+  );
+  lines.push("    for (var i = 0; i < wraps.length; i++) {");
+  lines.push("      var wrap = wraps[i];");
+  lines.push("      if(!wrap) continue;");
+  lines.push("      wrap.style.transform='scale(1)';");
+  lines.push("      var PX_PER_MM = 96 / 25.4;");
+  lines.push("      var pageW = 297 * PX_PER_MM;"); // A4 landscape width (mm)
+  lines.push("      var pageH = 210 * PX_PER_MM;"); // A4 landscape height (mm)
+  lines.push("      var marginMm = 6;"); // must match @page margin
+  lines.push("      var margin = marginMm * PX_PER_MM;");
+  lines.push("      var safety = 4;"); // keep a tiny buffer to avoid bottom clipping
+  lines.push("      var targetW = pageW - margin * 2 - safety;");
+  lines.push("      var targetH = pageH - margin * 2 - safety;");
+  lines.push("      var rect = wrap.getBoundingClientRect();");
+  lines.push("      if(!rect.width || !rect.height) continue;");
+  lines.push("      var scaleW = targetW / rect.width;");
+  lines.push("      var scaleH = targetH / rect.height;");
+  lines.push("      var scale = Math.min(scaleW, scaleH, 1);");
+  lines.push("      wrap.style.transform='scale(' + scale + ')';");
+  lines.push("    }");
   lines.push("  }");
-  lines.push("  window.addEventListener('load', fitOnePage);");
-  lines.push("  window.addEventListener('beforeprint', fitOnePage);");
+  lines.push("  window.addEventListener('load', fitSheets);");
+  lines.push("  window.addEventListener('beforeprint', fitSheets);");
   lines.push("})();");
   lines.push("</script>");
   lines.push("</body></html>");
+
   return lines.join("");
+}
+
+type PipelineRow = {
+  clientName: string;
+  source: string;
+  stage: string;
+  stageLabel: string;
+  stageOrder: number;
+  lostReason: string | null;
+};
+
+type PipelineStageDef = {
+  key: string;
+  label: string;
+  order: number;
+};
+
+function writePipelineSectionRightOnly(
+  ws: ExcelJS.Worksheet,
+  startRow: number,
+  clients: PipelineRow[],
+  stageDefs: PipelineStageDef[]
+): number {
+  let r = startRow;
+
+  const START_COL = 5; // E
+  const END_COL = 16; // P
+  const TOTAL_COLS = END_COL - START_COL + 1;
+
+  const stageTitleFill = "DAF2D0";
+
+  const byStage = new Map<string, PipelineRow[]>();
+
+  for (const row of clients) {
+    const arr = byStage.get(row.stage) ?? [];
+    arr.push(row);
+    byStage.set(row.stage, arr);
+  }
+
+  for (const [, arr] of byStage) {
+    arr.sort((a, b) => a.clientName.localeCompare(b.clientName));
+  }
+
+  // Title row
+  ws.mergeCells(r, START_COL, r, END_COL);
+  const titleCell = ws.getCell(r, START_COL);
+  titleCell.value = "Client Pipeline";
+  fillHexSolid(titleCell, COLOR_VPDM);
+  titleCell.font = { bold: true, size: 12 };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  for (let c = START_COL; c <= END_COL; c++) {
+    applyThinBorder(ws.getCell(r, c));
+  }
+
+  ws.getRow(r).height = 20;
+  r++;
+
+  const stages = stageDefs.map((def) => ({
+    def,
+    rows: (byStage.get(def.key) ?? []).map((row) => row.clientName),
+  }));
+
+  const stageCount = stages.length;
+  if (stageCount === 0) return r;
+
+  if (stageCount > TOTAL_COLS) {
+    throw new Error(
+      `Pipeline stage count (${stageCount}) exceeds available columns (${TOTAL_COLS})`
+    );
+  }
+
+  // Auto-distribute E:P width across current stage count (handles 7, 8, etc.)
+  const baseWidth = Math.floor(TOTAL_COLS / stageCount);
+  const remainder = TOTAL_COLS % stageCount;
+  const manualWidths = Array.from(
+    { length: stageCount },
+    (_, i) => baseWidth + (i < remainder ? 1 : 0)
+  );
+
+  const stageRanges: { startCol: number; endCol: number }[] = [];
+  let colCursor = START_COL;
+
+  for (let i = 0; i < stageCount; i++) {
+    const width = manualWidths[i]!;
+    const startCol = colCursor;
+    const endCol = colCursor + width - 1;
+
+    stageRanges.push({ startCol, endCol });
+    colCursor = endCol + 1;
+  }
+
+  // Step titles in one line
+  for (let i = 0; i < stageCount; i++) {
+    const stage = stages[i]!;
+    const { startCol, endCol } = stageRanges[i]!;
+
+    if (startCol !== endCol) {
+      ws.mergeCells(r, startCol, r, endCol);
+    }
+
+    const cell = ws.getCell(r, startCol);
+    cell.value = `Step ${stage.def.order} - ${stage.def.label}`;
+    fillHexSolid(cell, stageTitleFill);
+    cell.font = { bold: true, size: 10 };
+    cell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+      wrapText: true,
+    };
+
+    for (let c = startCol; c <= endCol; c++) {
+      applyThinBorder(ws.getCell(r, c));
+    }
+  }
+
+  ws.getRow(r).height = 22;
+  r++;
+
+  // max client rows
+  let maxRows = 0;
+  for (const s of stages) {
+    maxRows = Math.max(maxRows, s.rows.length);
+  }
+
+  // data rows
+  for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
+    for (let i = 0; i < stageCount; i++) {
+      const stage = stages[i]!;
+      const { startCol, endCol } = stageRanges[i]!;
+
+      if (startCol !== endCol) {
+        ws.mergeCells(r, startCol, r, endCol);
+      }
+
+      const cell = ws.getCell(r, startCol);
+
+      const clientName = stage.rows[rowIndex];
+
+      cell.value = clientName ? `${rowIndex + 1}. ${clientName}` : "";
+
+      cell.alignment = {
+        horizontal: "left",
+        vertical: "middle",
+        wrapText: true,
+      };
+
+      for (let c = startCol; c <= endCol; c++) {
+        applyThinBorder(ws.getCell(r, c));
+      }
+    }
+
+    ws.getRow(r).height = 18;
+    r++;
+  }
+
+  // if no clients anywhere
+  if (maxRows === 0) {
+    for (let i = 0; i < stageCount; i++) {
+      const { startCol, endCol } = stageRanges[i]!;
+
+      if (startCol !== endCol) {
+        ws.mergeCells(r, startCol, r, endCol);
+      }
+
+      const cell = ws.getCell(r, startCol);
+      cell.value = "No clients";
+      cell.font = { italic: true, size: 10 };
+      cell.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+
+      for (let c = startCol; c <= endCol; c++) {
+        applyThinBorder(ws.getCell(r, c));
+      }
+    }
+
+    ws.getRow(r).height = 18;
+    r++;
+  }
+
+  return r;
 }
 
 @Injectable()
 export class DailySheetExportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pipelineClients: PipelineClientsService
+  ) {}
 
-  async buildWorkbookForUser(
-    userId: string,
-    isoDate: string
-  ): Promise<Buffer> {
+  async buildWorkbookForUser(userId: string, isoDate: string): Promise<Buffer> {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
       throw new NotFoundException("Invalid date");
     }
 
     const day = new Date(`${isoDate}T12:00:00.000Z`);
 
-    const [categories, tasks, followups, fuCompletions] = await Promise.all([
-      this.prisma.category.findMany({
-        where: { userId },
-        orderBy: { name: "asc" },
-      }),
-      this.prisma.taskSeries.findMany({ where: { userId } }),
-      this.prisma.followupClient.findMany({ where: { userId } }),
-      this.prisma.followupCompletion.findMany({
-        where: {
-          date: day,
-          followupClient: { userId },
-        },
-        select: { followupClientId: true },
-      }),
-    ]);
+    const [categories, tasks, followups, fuCompletions, pipelineRows] =
+      await Promise.all([
+        this.prisma.category.findMany({
+          where: { userId },
+          orderBy: { name: "asc" },
+        }),
+        this.prisma.taskSeries.findMany({ where: { userId } }),
+        this.prisma.followupClient.findMany({ where: { userId } }),
+        this.prisma.followupCompletion.findMany({
+          where: {
+            date: day,
+            followupClient: { userId },
+          },
+          select: { followupClientId: true },
+        }),
+        this.pipelineClients.findAllForUser(userId),
+      ]);
 
     const fromDay = new Date(
       `${minTaskSeriesStartIso(tasks, isoDate)}T12:00:00.000Z`
     );
+
     const taskCompletionsInRange = await this.prisma.taskCompletion.findMany({
       where: {
         taskSeries: { userId },
@@ -668,11 +914,13 @@ export class DailySheetExportService {
       },
       select: { taskId: true, date: true },
     });
+
     const completionDatesByTaskId = buildTaskCompletionDatesMap(
       taskCompletionsInRange
     );
-
-    const completedFuIds = new Set(fuCompletions.map((c) => c.followupClientId));
+    const completedFuIds = new Set(
+      fuCompletions.map((c) => c.followupClientId)
+    );
 
     const sections = buildSections(
       categories,
@@ -680,11 +928,13 @@ export class DailySheetExportService {
       isoDate,
       completionDatesByTaskId
     );
+
     const oneTimeTasks = tasks.filter(
       (t) =>
         t.frequency === "once" &&
         isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
     );
+
     const commentPairs = buildCommentPairs(
       oneTimeTasks,
       isoDate,
@@ -704,6 +954,9 @@ export class DailySheetExportService {
     let commentRowCursor = 0;
     let commentsGapAdded = false;
 
+    let rightSectionLastRow = 3;
+    let commentSectionLastRow = 0;
+
     const writeRightSide = (rowNumber: number): void => {
       const hasFollowup = fillRowFollowup(
         ws,
@@ -715,6 +968,7 @@ export class DailySheetExportService {
 
       if (hasFollowup) {
         dataRowIndex += 1;
+        rightSectionLastRow = rowNumber;
         return;
       }
 
@@ -722,6 +976,7 @@ export class DailySheetExportService {
         if (!commentsGapAdded) {
           applyEmptyRightGrid(ws, rowNumber);
           commentsGapAdded = true;
+          rightSectionLastRow = rowNumber;
           return;
         }
 
@@ -732,18 +987,27 @@ export class DailySheetExportService {
       if (commentsStarted) {
         if (commentRowCursor === 0) {
           writeInlineCommentsHeader(ws, rowNumber);
-        } else {
+        } else if (commentRowCursor <= commentPairs.length) {
           writeInlineCommentData(
             ws,
             rowNumber,
             commentPairs[commentRowCursor - 1]
           );
+        } else {
+          applyEmptyRightGrid(ws, rowNumber);
         }
+
+        if (commentRowCursor <= commentPairs.length) {
+          commentSectionLastRow = rowNumber;
+        }
+
         commentRowCursor += 1;
+        rightSectionLastRow = rowNumber;
         return;
       }
 
       applyEmptyRightGrid(ws, rowNumber);
+      rightSectionLastRow = rowNumber;
     };
 
     for (const sec of sections) {
@@ -774,14 +1038,13 @@ export class DailySheetExportService {
         seq += 1;
 
         if (task) {
-          ws.getCell(currentRow, 2).value =
-            isOccurrenceCompletedInWindow(
-              task,
-              isoDate,
-              completionDatesByTaskId
-            )
-              ? TICK_DONE
-              : TICK_EMPTY;
+          ws.getCell(currentRow, 2).value = isOccurrenceCompletedInWindow(
+            task,
+            isoDate,
+            completionDatesByTaskId
+          )
+            ? TICK_DONE
+            : TICK_EMPTY;
           ws.getCell(currentRow, 3).value = task.title;
         } else {
           ws.getCell(currentRow, 2).value = TICK_EMPTY;
@@ -808,7 +1071,6 @@ export class DailySheetExportService {
 
         ws.getCell(currentRow, 4).value = "";
         applyThinBorder(ws.getCell(currentRow, 4));
-
         ws.getRow(currentRow).height = task?.title ? 16.4 : 15;
 
         writeRightSide(currentRow);
@@ -828,23 +1090,41 @@ export class DailySheetExportService {
         commentPairs[commentRowCursor - 1]
       );
 
+      rightSectionLastRow = currentRow;
+      commentSectionLastRow = currentRow;
       currentRow += 1;
       commentRowCursor += 1;
     }
+
+    const pipelineAnchorRow =
+      commentSectionLastRow > 0 ? commentSectionLastRow : rightSectionLastRow;
+
+    const pipelineStartRow = pipelineAnchorRow + 2;
+
+    writePipelineSectionRightOnly(
+      ws,
+      pipelineStartRow,
+      pipelineRows,
+      this.pipelineClients.listStages()
+    );
 
     const buf = await wb.xlsx.writeBuffer();
     return Buffer.from(buf);
   }
 
-  async buildPrintHtmlForUser(userId: string, isoDate: string): Promise<string> {
+  async buildPrintHtmlForUser(
+    userId: string,
+    isoDate: string
+  ): Promise<string> {
     const buf = await this.buildWorkbookForUser(userId, isoDate);
+
     const wb = new ExcelJS.Workbook();
+    await (
+      wb.xlsx as unknown as { load: (data: unknown) => Promise<unknown> }
+    ).load(buf);
 
-    await (wb.xlsx as unknown as { load: (data: unknown) => Promise<unknown> }).load(
-      buf
-    );
+    const wsDaily = wb.worksheets[0];
 
-    const ws = wb.worksheets[0];
-    return buildPrintHtmlFromWorksheet(ws, `VPDM Daily Task ${isoDate}`);
+    return buildPrintHtmlCombined(wsDaily, `VPDM Daily Task ${isoDate}`);
   }
 }

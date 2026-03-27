@@ -37,7 +37,8 @@
   --gradient-blob: rgba(99, 102, 241, 0.18);
   --gradient-blob-2: rgba(124, 77, 255, 0.12);
 
-  /* Scrollbars (main area + table strips) — same thin look on all viewports */
+  /* Scrollbars: app body, dashboard/add-task/task-board tables, pipeline board strip, task modal
+     (categories + pipeline Clients strip: themed in their page CSS for correct lazy-load order) */
   --scrollbar-thumb: rgba(92, 100, 126, 0.4);
   --scrollbar-thumb-hover: rgba(72, 80, 108, 0.55);
   --scrollbar-track: rgba(241, 245, 249, 0.65);
@@ -74,8 +75,9 @@ body {
 .app-body,
 .dashboard-table-wrap,
 .task-board .task-table-wrap,
+.task-board .modal-backdrop,
 .add-task-table-wrap,
-.categories-table-wrap {
+.pipeline-board-table-wrap {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
@@ -83,8 +85,9 @@ body {
 .app-body::-webkit-scrollbar,
 .dashboard-table-wrap::-webkit-scrollbar,
 .task-board .task-table-wrap::-webkit-scrollbar,
+.task-board .modal-backdrop::-webkit-scrollbar,
 .add-task-table-wrap::-webkit-scrollbar,
-.categories-table-wrap::-webkit-scrollbar {
+.pipeline-board-table-wrap::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
@@ -92,8 +95,9 @@ body {
 .app-body::-webkit-scrollbar-track,
 .dashboard-table-wrap::-webkit-scrollbar-track,
 .task-board .task-table-wrap::-webkit-scrollbar-track,
+.task-board .modal-backdrop::-webkit-scrollbar-track,
 .add-task-table-wrap::-webkit-scrollbar-track,
-.categories-table-wrap::-webkit-scrollbar-track {
+.pipeline-board-table-wrap::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
   border-radius: 999px;
 }
@@ -101,8 +105,9 @@ body {
 .app-body::-webkit-scrollbar-thumb,
 .dashboard-table-wrap::-webkit-scrollbar-thumb,
 .task-board .task-table-wrap::-webkit-scrollbar-thumb,
+.task-board .modal-backdrop::-webkit-scrollbar-thumb,
 .add-task-table-wrap::-webkit-scrollbar-thumb,
-.categories-table-wrap::-webkit-scrollbar-thumb {
+.pipeline-board-table-wrap::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
@@ -110,8 +115,9 @@ body {
 .app-body::-webkit-scrollbar-thumb:hover,
 .dashboard-table-wrap::-webkit-scrollbar-thumb:hover,
 .task-board .task-table-wrap::-webkit-scrollbar-thumb:hover,
+.task-board .modal-backdrop::-webkit-scrollbar-thumb:hover,
 .add-task-table-wrap::-webkit-scrollbar-thumb:hover,
-.categories-table-wrap::-webkit-scrollbar-thumb:hover {
+.pipeline-board-table-wrap::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
 }
 
