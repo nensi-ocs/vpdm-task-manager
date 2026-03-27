@@ -703,6 +703,15 @@ type PipelineStageDef = {
   order: number;
 };
 
+function applyEmptyLeftGrid(ws: ExcelJS.Worksheet, r: number): void {
+  for (let c = 1; c <= 4; c++) {
+    const cell = ws.getCell(r, c);
+    cell.value = "";
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    applyThinBorder(cell);
+  }
+}
+
 function writePipelineSectionRightOnly(
   ws: ExcelJS.Worksheet,
   startRow: number,
@@ -730,6 +739,8 @@ function writePipelineSectionRightOnly(
   }
 
   // Title row
+  applyEmptyLeftGrid(ws, r);
+
   ws.mergeCells(r, START_COL, r, END_COL);
   const titleCell = ws.getCell(r, START_COL);
   titleCell.value = "Client Pipeline";
@@ -778,7 +789,9 @@ function writePipelineSectionRightOnly(
     colCursor = endCol + 1;
   }
 
-  // Step titles in one line
+  // Step titles row
+  applyEmptyLeftGrid(ws, r);
+
   for (let i = 0; i < stageCount; i++) {
     const stage = stages[i]!;
     const { startCol, endCol } = stageRanges[i]!;
@@ -813,6 +826,8 @@ function writePipelineSectionRightOnly(
 
   // data rows
   for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
+    applyEmptyLeftGrid(ws, r);
+
     for (let i = 0; i < stageCount; i++) {
       const stage = stages[i]!;
       const { startCol, endCol } = stageRanges[i]!;
@@ -822,11 +837,9 @@ function writePipelineSectionRightOnly(
       }
 
       const cell = ws.getCell(r, startCol);
-
       const clientName = stage.rows[rowIndex];
 
       cell.value = clientName ? `${rowIndex + 1}. ${clientName}` : "";
-
       cell.alignment = {
         horizontal: "left",
         vertical: "middle",
@@ -844,6 +857,8 @@ function writePipelineSectionRightOnly(
 
   // if no clients anywhere
   if (maxRows === 0) {
+    applyEmptyLeftGrid(ws, r);
+
     for (let i = 0; i < stageCount; i++) {
       const { startCol, endCol } = stageRanges[i]!;
 
