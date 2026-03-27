@@ -43,8 +43,12 @@ const COLOR_FLIPKART_NEW_CLIENT = "DAE9F8";
 const COLOR_HEADERS = "D0D0D0";
 const COLOR_COMMENTS_AND_CATEGORY = "DAF2D0";
 
-const COMMENT_LINE_DEFAULTS = [] as const;
 const LAST_COL = 16;
+/** First column of the Amazon/Flipkart tick+name grid (track index 0 = col E). */
+const TICK_COL_FIRST = 5;
+
+/** Print HTML: if a line of text would exceed this many characters, continue on the next line. */
+const PRINT_MAX_CHARS_PER_LINE = 28;
 
 type Section = { name: string; tasks: TaskSeriesSchedule[] };
 
@@ -156,7 +160,14 @@ function vpdmDateLabel(isoDate: string): string {
 }
 
 function normTrack(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
+  // Track values in DB are free-form; normalize common variations so
+  // "Amazon Client Follow-Up", "Amazon_Client Followup", etc still match.
+  return s
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function clientsForTrack(
@@ -179,8 +190,28 @@ function applyThinBorder(cell: ExcelJS.Cell): void {
   };
 }
 
+function applyThinBordersToRowRange(
+  ws: ExcelJS.Worksheet,
+  row: number,
+  colFrom: number,
+  colTo: number
+): void {
+  for (let c = colFrom; c <= colTo; c++) {
+    applyThinBorder(ws.getCell(row, c));
+  }
+}
+
+/** Tick column for VPDM track index `ti` (0 = Amazon Client Followup). */
+function trackTickCol(ti: number): number {
+  return TICK_COL_FIRST + 2 * ti;
+}
+
+function trackNameCol(ti: number): number {
+  return TICK_COL_FIRST + 1 + 2 * ti;
+}
+
 function applyEmptyRightGrid(ws: ExcelJS.Worksheet, r: number): void {
-  for (let c = 5; c <= LAST_COL; c++) {
+  for (let c = TICK_COL_FIRST; c <= LAST_COL; c++) {
     const cell = ws.getCell(r, c);
     cell.value = "";
     cell.alignment = { horizontal: "center", vertical: "middle" };
@@ -198,8 +229,8 @@ function fillRowFollowup(
   let hasAny = false;
 
   for (let ti = 0; ti < VPDM_TRACKS.length; ti++) {
-    const nameCol = 6 + 2 * ti;
-    const tickCol = nameCol - 1;
+    const tickCol = trackTickCol(ti);
+    const nameCol = trackNameCol(ti);
     const clients = clientsForTrack(followups, VPDM_TRACKS[ti]);
     const fu = clients[dataRowIndex];
 
@@ -292,16 +323,12 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
     horizontal: "center",
     vertical: "middle",
   };
-  applyThinBorder(ws.getCell(2, 1));
-  applyThinBorder(ws.getCell(2, 2));
-  applyThinBorder(ws.getCell(2, 3));
-
   ws.getCell(2, 4).value = "";
-  applyThinBorder(ws.getCell(2, 4));
+  applyThinBordersToRowRange(ws, 2, 1, 4);
 
   for (let ti = 0; ti < VPDM_TRACKS.length; ti++) {
-    const c0 = 5 + 2 * ti;
-    const c1 = c0 + 1;
+    const c0 = trackTickCol(ti);
+    const c1 = trackNameCol(ti);
     const label = EXCEL_ROW2_TRACK_LABELS[ti] ?? VPDM_TRACKS[ti];
     const rgbHex = TRACK_HEADER_HEX[ti] ?? COLOR_ROLE_AND_SELECTED_TRACKS;
 
@@ -335,9 +362,9 @@ function writeTopHeaderRows(ws: ExcelJS.Worksheet, isoDate: string): void {
     applyThinBorder(cell);
   }
 
-  for (let i = 0; i < 6; i++) {
-    const tickCol = 5 + 2 * i;
-    const nameCol = 6 + 2 * i;
+  for (let i = 0; i < VPDM_TRACKS.length; i++) {
+    const tickCol = trackTickCol(i);
+    const nameCol = trackNameCol(i);
 
     ws.getCell(3, tickCol).value = "Tick";
     ws.getCell(3, nameCol).value = "Client Name";
@@ -361,12 +388,8 @@ function buildCommentPairs(
   isoDate: string,
   completionDatesByTaskId: Map<number, Set<string>>
 ): CommentPair[] {
-  const defaults = [...COMMENT_LINE_DEFAULTS];
   const tasks = sortForSection(oneTimeTasks);
-  const totalPairs = Math.max(
-    1,
-    Math.ceil(Math.max(tasks.length, defaults.length) / 2)
-  );
+  const totalPairs = Math.max(1, Math.ceil(tasks.length / 2));
 
   const pairs: CommentPair[] = [];
 
@@ -375,7 +398,7 @@ function buildCommentPairs(
     const rightTask = tasks[i * 2 + 1];
 
     pairs.push({
-      leftText: leftTask?.title ?? (i < defaults.length ? defaults[i]! : ""),
+      leftText: leftTask?.title ?? "",
       rightText: rightTask?.title ?? "",
       leftDone: leftTask
         ? isOccurrenceCompletedInWindow(
@@ -413,8 +436,7 @@ function writeInlineCommentsHeader(ws: ExcelJS.Worksheet, r: number): void {
   flipkartHead.font = { bold: true, size: 11 };
   flipkartHead.alignment = { horizontal: "center", vertical: "middle" };
 
-  for (let c = 5; c <= 10; c++) applyThinBorder(ws.getCell(r, c));
-  for (let c = 11; c <= 16; c++) applyThinBorder(ws.getCell(r, c));
+  applyThinBordersToRowRange(ws, r, 5, 16);
 
   ws.getRow(r).height = 18;
 }
@@ -458,8 +480,8 @@ function writeInlineCommentData(
     wrapText: true,
   };
 
-  for (let c = 6; c <= 10; c++) applyThinBorder(ws.getCell(r, c));
-  for (let c = 12; c <= 16; c++) applyThinBorder(ws.getCell(r, c));
+  applyThinBordersToRowRange(ws, r, 6, 10);
+  applyThinBordersToRowRange(ws, r, 12, 16);
 
   ws.getRow(r).height = leftText || rightText ? 18 : 15;
 }
@@ -471,6 +493,64 @@ function escapeHtml(s: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+/** Word-wrap one paragraph to lines of at most `maxLen` chars; split long words if needed. */
+function wrapParagraphToLines(paragraph: string, maxLen: number): string[] {
+  const trimmed = paragraph.trim();
+  if (!trimmed) {
+    return [""];
+  }
+
+  const words = trimmed.split(/\s+/);
+  const out: string[] = [];
+  let current = "";
+
+  for (const w of words) {
+    if (w.length > maxLen) {
+      if (current) {
+        out.push(current);
+        current = "";
+      }
+      for (let i = 0; i < w.length; i += maxLen) {
+        out.push(w.slice(i, i + maxLen));
+      }
+      continue;
+    }
+
+    const trial = current ? `${current} ${w}` : w;
+    if (trial.length <= maxLen) {
+      current = trial;
+    } else {
+      if (current) {
+        out.push(current);
+      }
+      current = w;
+    }
+  }
+
+  if (current) {
+    out.push(current);
+  }
+
+  return out.length > 0 ? out : [""];
+}
+
+/** Escape cell text and insert `<br />` when content would exceed the max line length. */
+function wrapHtmlCellText(raw: string, maxCharsPerLine: number): string {
+  if (!raw) {
+    return "";
+  }
+  if (maxCharsPerLine <= 0) {
+    return escapeHtml(raw);
+  }
+
+  const paragraphs = raw.split(/\r\n|\n|\r/);
+  return paragraphs
+    .map((para) =>
+      wrapParagraphToLines(para, maxCharsPerLine).map(escapeHtml).join("<br />")
+    )
+    .join("<br />");
 }
 
 function colLettersToNumber(col: string): number {
@@ -504,11 +584,73 @@ function borderCssSide(b: ExcelJS.Border | undefined): string {
   return "1px solid #000";
 }
 
-function buildHtmlTableFromWorksheet(
-  ws: ExcelJS.Worksheet,
-  maxCol: number
-): string {
-  const merges = ws.model.merges ?? [];
+function getCellDisplayText(cell: ExcelJS.Cell): string {
+  const v = cell.value;
+  if (v == null) {
+    return "";
+  }
+  if (typeof v === "object") {
+    const o = v as { richText?: { text: string }[]; text?: string };
+    if ("richText" in o && Array.isArray(o.richText)) {
+      return o.richText.map((p) => p.text).join("");
+    }
+    if ("text" in o && typeof o.text === "string") {
+      return o.text;
+    }
+    return String(cell.text ?? "");
+  }
+  return String(v);
+}
+
+function htmlInlineStylesFromCell(cell: ExcelJS.Cell): string[] {
+  const b = cell.border as {
+    top?: ExcelJS.Border;
+    right?: ExcelJS.Border;
+    bottom?: ExcelJS.Border;
+    left?: ExcelJS.Border;
+  };
+
+  const styles: string[] = [
+    `border-top:${borderCssSide(b?.top)}`,
+    `border-right:${borderCssSide(b?.right)}`,
+    `border-bottom:${borderCssSide(b?.bottom)}`,
+    `border-left:${borderCssSide(b?.left)}`,
+    "background-color:#fff",
+    "color:#000",
+  ];
+
+  const fill = cell.fill as
+    | undefined
+    | { type?: string; pattern?: string; fgColor?: { argb?: string } };
+
+  const argb = fill?.fgColor?.argb;
+  if (fill?.type === "pattern" && fill?.pattern === "solid" && argb) {
+    styles.push(`background-color:#${argb.slice(-6)}`);
+  }
+
+  if (cell.alignment?.horizontal) {
+    styles.push(`text-align:${cell.alignment.horizontal}`);
+  }
+  if (cell.alignment?.vertical) {
+    styles.push(`vertical-align:${cell.alignment.vertical}`);
+  }
+  if (cell.alignment?.wrapText) {
+    styles.push("white-space: pre-wrap");
+  }
+  if (cell.font?.bold) {
+    styles.push("font-weight:700");
+  }
+  if (typeof cell.font?.size === "number") {
+    styles.push(`font-size:${cell.font.size}px`);
+  }
+
+  return styles;
+}
+
+function buildMergeIndex(merges: string[]): {
+  mergeByMaster: Map<string, { rowSpan: number; colSpan: number }>;
+  mergedCovered: Set<string>;
+} {
   const mergeByMaster = new Map<string, { rowSpan: number; colSpan: number }>();
   const mergedCovered = new Set<string>();
 
@@ -530,10 +672,30 @@ function buildHtmlTableFromWorksheet(
     }
   }
 
+  return { mergeByMaster, mergedCovered };
+}
+
+function worksheetMaxRow(ws: ExcelJS.Worksheet): number {
+  let maxRow = ws.rowCount ?? 0;
+  const rowsPrivate = (ws as unknown as { _rows?: Record<string, unknown> })._rows;
+  if (rowsPrivate && typeof rowsPrivate === "object") {
+    for (const k of Object.keys(rowsPrivate)) {
+      const n = Number(k);
+      if (Number.isFinite(n) && n > maxRow) maxRow = n;
+    }
+  }
+  return maxRow;
+}
+
+function buildHtmlTableFromWorksheet(
+  ws: ExcelJS.Worksheet,
+  maxCol: number
+): string {
+  const { mergeByMaster, mergedCovered } = buildMergeIndex(ws.model.merges ?? []);
+  const maxRow = worksheetMaxRow(ws);
+
   const lines: string[] = [];
   lines.push("<table>");
-
-  const maxRow = ws.rowCount;
 
   for (let r = 1; r <= maxRow; r++) {
     lines.push("<tr>");
@@ -552,68 +714,15 @@ function buildHtmlTableFromWorksheet(
         attrs.push(`colspan="${merge.colSpan}"`);
       }
 
-      const b = cell.border as {
-        top?: ExcelJS.Border;
-        right?: ExcelJS.Border;
-        bottom?: ExcelJS.Border;
-        left?: ExcelJS.Border;
-      };
+      attrs.push(`data-col="${c}"`);
 
-      const styles: string[] = [];
-      styles.push(`border-top:${borderCssSide(b?.top)}`);
-      styles.push(`border-right:${borderCssSide(b?.right)}`);
-      styles.push(`border-bottom:${borderCssSide(b?.bottom)}`);
-      styles.push(`border-left:${borderCssSide(b?.left)}`);
-      styles.push("background-color:#fff");
-      styles.push("color:#000");
-
-      const fill = cell.fill as
-        | undefined
-        | { type?: string; pattern?: string; fgColor?: { argb?: string } };
-
-      const argb = fill?.fgColor?.argb;
-      if (fill?.type === "pattern" && fill?.pattern === "solid" && argb) {
-        const hex = argb.slice(-6);
-        styles.push(`background-color:#${hex}`);
-      }
-
-      if (cell.alignment?.horizontal) {
-        styles.push(`text-align:${cell.alignment.horizontal}`);
-      }
-      if (cell.alignment?.vertical) {
-        styles.push(`vertical-align:${cell.alignment.vertical}`);
-      }
-      if (cell.alignment?.wrapText) {
-        styles.push("white-space: pre-wrap");
-      }
-      if (cell.font?.bold) {
-        styles.push("font-weight:700");
-      }
-      if (typeof cell.font?.size === "number") {
-        styles.push(`font-size:${cell.font.size}px`);
-      }
-
-      let text = "";
-      if (cell.value == null) {
-        text = "";
-      } else if (typeof cell.value === "object") {
-        if ("richText" in cell.value && Array.isArray(cell.value.richText)) {
-          text = cell.value.richText.map((p) => p.text).join("");
-        } else if (
-          "text" in cell.value &&
-          typeof cell.value.text === "string"
-        ) {
-          text = cell.value.text;
-        } else {
-          text = String(cell.text ?? "");
-        }
-      } else {
-        text = String(cell.value);
-      }
+      const styles = htmlInlineStylesFromCell(cell);
+      const text = getCellDisplayText(cell);
 
       lines.push(
-        `<td ${attrs.join(" ")} style="${styles.join(";")}">${escapeHtml(
-          text
+        `<td ${attrs.join(" ")} style="${styles.join(";")}">${wrapHtmlCellText(
+          text,
+          PRINT_MAX_CHARS_PER_LINE
         )}</td>`
       );
     }
@@ -624,26 +733,34 @@ function buildHtmlTableFromWorksheet(
   return lines.join("");
 }
 
+/** CSS for the daily-sheet print HTML (screen + print). */
+function printDocumentCss(): string {
+  return [
+    "@page { size: A4 landscape; margin: 6mm; }",
+    "body { font-family: Arial, sans-serif; margin: 0; background:#fff; color:#000; }",
+    "#print-root { width: 100%; }",
+    ".sheet-wrap { transform-origin: top left; width: max-content; }",
+    "table { border-collapse: collapse; table-layout: fixed; }",
+    "td { font-size: 11px; padding: 1px 3px; vertical-align: middle; " +
+      "word-wrap: break-word; overflow-wrap: anywhere; word-break: break-word; " +
+      "hyphens: auto; -webkit-hyphens: auto; background:#fff; color:#000; }",
+    "#print-root table td { border: 1px solid #000 !important; box-sizing: border-box; }",
+    "#print-root table td[data-col=\"4\"] { border-left: 2px solid #000 !important; }",
+    "#print-root table td[data-col=\"1\"][colspan=\"3\"] { border-right: 2px solid #000 !important; }",
+    "@media print { .no-print { display: none; } .sheet-wrap { transform: none !important; } }",
+  ].join("\n");
+}
+
 function buildPrintHtmlCombined(
   wsDaily: ExcelJS.Worksheet,
   docTitle: string
 ): string {
   const lines: string[] = [];
   lines.push("<!doctype html>");
-  lines.push('<html><head><meta charset="utf-8" />');
+  lines.push('<html lang="en"><head><meta charset="utf-8" />');
   lines.push(`<title>${escapeHtml(docTitle)}</title>`);
   lines.push("<style>");
-  lines.push("@page { size: A4 landscape; margin: 6mm; }");
-  lines.push(
-    "body { font-family: Arial, sans-serif; margin: 0; background:#fff; color:#000; }"
-  );
-  lines.push("#print-root { width: 100%; }");
-  lines.push(".sheet-wrap { transform-origin: top left; width: max-content; }");
-  lines.push("table { border-collapse: collapse; table-layout: fixed; }");
-  lines.push(
-    "td { font-size: 11px; padding: 1px 3px; vertical-align: middle; word-wrap: break-word; background:#fff; color:#000; }"
-  );
-  lines.push("@media print { .no-print { display: none; } }");
+  lines.push(printDocumentCss());
   lines.push("</style></head><body>");
   lines.push('<div class="no-print" style="margin:8px 0;">');
   lines.push('<button onclick="window.print()">Print</button>');
@@ -737,9 +854,7 @@ function writePipelineSectionRightOnly(
   titleCell.font = { bold: true, size: 12 };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  for (let c = START_COL; c <= END_COL; c++) {
-    applyThinBorder(ws.getCell(r, c));
-  }
+  applyThinBordersToRowRange(ws, r, START_COL, END_COL);
 
   ws.getRow(r).height = 20;
   r++;
@@ -833,9 +948,7 @@ function writePipelineSectionRightOnly(
         wrapText: true,
       };
 
-      for (let c = startCol; c <= endCol; c++) {
-        applyThinBorder(ws.getCell(r, c));
-      }
+      applyThinBordersToRowRange(ws, r, startCol, endCol);
     }
 
     ws.getRow(r).height = 18;
@@ -859,9 +972,7 @@ function writePipelineSectionRightOnly(
         vertical: "middle",
       };
 
-      for (let c = startCol; c <= endCol; c++) {
-        applyThinBorder(ws.getCell(r, c));
-      }
+      applyThinBordersToRowRange(ws, r, startCol, endCol);
     }
 
     ws.getRow(r).height = 18;
@@ -1019,12 +1130,8 @@ export class DailySheetExportService {
       catCell.font = { bold: true, size: 11 };
       catCell.alignment = { horizontal: "center", vertical: "middle" };
 
-      applyThinBorder(ws.getCell(currentRow, 1));
-      applyThinBorder(ws.getCell(currentRow, 2));
-      applyThinBorder(ws.getCell(currentRow, 3));
-
       ws.getCell(currentRow, 4).value = "";
-      applyThinBorder(ws.getCell(currentRow, 4));
+      applyThinBordersToRowRange(ws, currentRow, 1, 4);
       ws.getRow(currentRow).height = 18;
 
       writeRightSide(currentRow);
@@ -1065,17 +1172,33 @@ export class DailySheetExportService {
           wrapText: true,
         };
 
-        applyThinBorder(ws.getCell(currentRow, 1));
-        applyThinBorder(ws.getCell(currentRow, 2));
-        applyThinBorder(ws.getCell(currentRow, 3));
-
         ws.getCell(currentRow, 4).value = "";
-        applyThinBorder(ws.getCell(currentRow, 4));
+        applyThinBordersToRowRange(ws, currentRow, 1, 4);
         ws.getRow(currentRow).height = task?.title ? 16.4 : 15;
 
         writeRightSide(currentRow);
         currentRow += 1;
       }
+    }
+
+    // Follow-ups are rendered on the right side using `dataRowIndex`.
+    // If there are more follow-up clients than task/comment rows generated on
+    // the left side, the current sheet would truncate the remaining follow-ups.
+    const maxFollowupRows = Math.max(
+      ...VPDM_TRACKS.map((t) => clientsForTrack(followups, t).length),
+      0
+    );
+    while (dataRowIndex < maxFollowupRows) {
+      writeRightSide(currentRow);
+
+      // Keep the left side visually empty for these extra rows.
+      for (let c = 1; c <= 4; c++) {
+        const cell = ws.getCell(currentRow, c);
+        cell.value = "";
+        applyThinBorder(cell);
+      }
+      ws.getRow(currentRow).height = 15;
+      currentRow += 1;
     }
 
     if (!commentsStarted && commentPairs.length > 0) {
@@ -1095,8 +1218,8 @@ export class DailySheetExportService {
     while (commentsStarted && commentRowCursor <= commentPairs.length) {
       for (let c = 1; c <= 4; c++) {
         ws.getCell(currentRow, c).value = "";
-        applyThinBorder(ws.getCell(currentRow, c));
       }
+      applyThinBordersToRowRange(ws, currentRow, 1, 4);
 
       writeInlineCommentData(
         ws,
