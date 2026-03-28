@@ -27,7 +27,7 @@
 
 .pipeline-add-form {
   display: grid;
-  grid-template-columns: 1.2fr 1fr auto;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.85fr) minmax(0, 1.4fr) auto;
   gap: 10px;
   align-items: center;
 }
@@ -657,12 +657,22 @@
 
 .pipeline-modal {
   width: min(560px, 100%);
-  background: var(--panel);
+  /* --panel was never defined; invalid var() broke background and contrast */
+  background: var(--bg-elevated);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 14px;
   display: grid;
   gap: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.pipeline-modal h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .pipeline-modal-head {
@@ -675,6 +685,37 @@
 .pipeline-modal-subtitle {
   margin: 0;
   color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.pipeline-modal-subtitle strong {
+  color: var(--text);
+}
+
+.pipeline-modal .field .label {
+  color: var(--text-muted);
+}
+
+.pipeline-modal .input,
+.pipeline-modal select.input {
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+}
+
+.pipeline-modal .input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.pipeline-modal .btn.ghost {
+  color: var(--text);
+  background: var(--btn-secondary-bg);
+  border-color: var(--border);
+}
+
+.pipeline-modal .btn.ghost:hover {
+  background: var(--btn-secondary-hover);
 }
 
 .pipeline-modal-actions {

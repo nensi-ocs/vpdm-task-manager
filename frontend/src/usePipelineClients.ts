@@ -14,6 +14,14 @@ function comparePipelineStages(a: PipelineStage, b: PipelineStage): number {
   return rank(a.key) - rank(b.key) || a.key.localeCompare(b.key);
 }
 
+function compareClientsByStepThenName(a: PipelineClient, b: PipelineClient): number {
+  if (a.stageOrder !== b.stageOrder) return a.stageOrder - b.stageOrder;
+  const rank = (k: string) => (k === "deal_won" ? 0 : k === "deal_lost" ? 1 : 2);
+  const stageTie = rank(a.stage) - rank(b.stage);
+  if (stageTie !== 0) return stageTie;
+  return a.clientName.localeCompare(b.clientName);
+}
+
 export function usePipelineClients(userId: string | undefined) {
   const [clients, setClients] = useState<PipelineClient[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
@@ -50,14 +58,19 @@ export function usePipelineClients(userId: string | undefined) {
     void reload();
   }, [userId, reload]);
 
-  const addClient = useCallback(async (clientName: string, source: string) => {
-    const saved = await apiSendJson<PipelineClient>("/pipeline-clients", "POST", {
-      clientName,
-      source,
-    });
-    setClients((prev) => [...prev, saved].sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
-    return saved;
-  }, []);
+  const addClient = useCallback(
+    async (clientName: string, source: string, stage?: string) => {
+      const payload: { clientName: string; source: string; stage?: string } = {
+        clientName,
+        source,
+      };
+      if (stage) payload.stage = stage;
+      const saved = await apiSendJson<PipelineClient>("/pipeline-clients", "POST", payload);
+      setClients((prev) => [...prev, saved].sort(compareClientsByStepThenName));
+      return saved;
+    },
+    []
+  );
 
   const advanceClient = useCallback(async (id: string) => {
     const updated = await apiSendJson<PipelineClient>(

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { VPDM_TRACKS } from "../vpdmCatalog";
 import { useFollowupClients } from "../useFollowupClients";
@@ -8,7 +8,7 @@ import { PencilLine, Trash2, X } from "lucide-react";
 
 export function FollowupClientsPage() {
   const { user } = useAuth();
-  const { grouped, loading, error, addClient, updateClient, removeClient } =
+  const { clients, grouped, loading, error, addClient, updateClient, removeClient } =
     useFollowupClients(user?.id);
   const [track, setTrack] = useState<string>(VPDM_TRACKS[0]);
   const [clientName, setClientName] = useState("");
@@ -27,6 +27,23 @@ export function FollowupClientsPage() {
     return n;
   }, [grouped]);
 
+  const followupAddFormIsUpdate = useMemo(() => {
+    const n = clientName.trim().toLowerCase();
+    if (!n) return false;
+    return clients.some(
+      (c) => c.track === track && c.clientName.trim().toLowerCase() === n
+    );
+  }, [clients, track, clientName]);
+
+  useEffect(() => {
+    const n = clientName.trim().toLowerCase();
+    if (!n) return;
+    const hit = clients.find(
+      (c) => c.track === track && c.clientName.trim().toLowerCase() === n
+    );
+    if (hit) setOwner(hit.owner ?? "");
+  }, [clients, track, clientName]);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const name = clientName.trim();
@@ -34,13 +51,26 @@ export function FollowupClientsPage() {
     setBusy(true);
     setLocalError(null);
     try {
-      await addClient(track, name, owner.trim() || null);
+      const nameLower = name.toLowerCase();
+      const existing = clients.find(
+        (c) => c.track === track && c.clientName.trim().toLowerCase() === nameLower
+      );
+      if (existing) {
+        await updateClient(existing.id, {
+          track,
+          clientName: name,
+          owner: owner.trim() || null,
+        });
+        toastSuccess("Client updated");
+      } else {
+        await addClient(track, name, owner.trim() || null);
+        toastSuccess("Client added");
+      }
       setClientName("");
       setOwner("");
-      toastSuccess("Client added");
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Failed to add client");
-      toastApiError(err, "Failed to add client");
+      setLocalError(err instanceof Error ? err.message : "Failed to save client");
+      toastApiError(err, "Failed to save client");
     } finally {
       setBusy(false);
     }
@@ -118,7 +148,7 @@ export function FollowupClientsPage() {
             maxLength={120}
           />
           <button type="submit" className="btn primary" disabled={busy}>
-            Add Client
+            {followupAddFormIsUpdate ? "Update Client" : "Add Client"}
           </button>
         </form>
         {localError ? <p style={{ color: "var(--danger)" }}>{localError}</p> : null}

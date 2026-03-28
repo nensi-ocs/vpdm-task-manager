@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { usePipelineClients } from "../usePipelineClients";
+import { apiGet, apiSendJson } from "../api";
 import { toastApiError, toastSuccess } from "../toast";
-import type { PipelineClient, PipelineStage } from "../types";
+import type { FollowupClient, PipelineClient, PipelineStage } from "../types";
+import { VPDM_TRACKS } from "../vpdmCatalog";
 import "./pipeline-clients-page.css";
 import { Trash2, X } from "lucide-react";
 import { Pagination } from "../components/Pagination";
@@ -68,6 +71,11 @@ function isTerminalStage(stageKey: string): boolean {
   return stageKey === "onboarding" || stageKey === "deal_lost";
 }
 
+function vpdmTrackOrder(track: string): number {
+  const i = (VPDM_TRACKS as readonly string[]).indexOf(track);
+  return i === -1 ? 999 : i;
+}
+
 /** Table / export order: pipeline step first, then name within the same step. */
 function compareClientsByStepThenName(a: PipelineClient, b: PipelineClient): number {
   if (a.stageOrder !== b.stageOrder) return a.stageOrder - b.stageOrder;
@@ -93,6 +101,7 @@ export function PipelineClientsPage() {
 
   const [clientName, setClientName] = useState("");
   const [source, setSource] = useState("ads");
+  const [addStage, setAddStage] = useState("lead_generated");
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -108,6 +117,105 @@ export function PipelineClientsPage() {
   const [lostId, setLostId] = useState<string | null>(null);
   const [lostClientName, setLostClientName] = useState("");
   const [lostReason, setLostReason] = useState("");
+
+  const [wonFollowupOpen, setWonFollowupOpen] = useState(false);
+  const [wonFollowupClientName, setWonFollowupClientName] = useState("");
+  const [wonFollowupTrack, setWonFollowupTrack] = useState<string>(VPDM_TRACKS[0]);
+  const [wonFollowupOwner, setWonFollowupOwner] = useState("");
+  /** True when this client name already exists on the selected follow-up track (PATCH vs POST). */
+  const [followupModalIsUpdate, setFollowupModalIsUpdate] = useState(false);
+  /** Follow-up list loaded for current modal fields (avoid Add/Update flash). */
+  const [followupModalReady, setFollowupModalReady] = useState(false);
+  /** User changed track in modal — do not auto-jump to another track. */
+  const followupUserChangedTrackRef = useRef(false);
+  /** Avoid refetch when effect re-runs only because we snapped `wonFollowupTrack`. */
+  const followupModalListCacheRef = useRef<{ nameKey: string; list: FollowupClient[] } | null>(
+    null
+  );
+
+  const stagesForAdd = useMemo(
+    () => stages.filter((s) => s.key !== "deal_lost"),
+    [stages]
+  );
+
+  useEffect(() => {
+    if (stagesForAdd.length === 0) return;
+    setAddStage((prev) =>
+      stagesForAdd.some((s) => s.key === prev) ? prev : stagesForAdd[0].key
+    );
+  }, [stagesForAdd]);
+
+  useEffect(() => {
+    if (!wonFollowupOpen) {
+      followupModalListCacheRef.current = null;
+      setFollowupModalIsUpdate(false);
+      setFollowupModalReady(false);
+      return;
+    }
+    const name = wonFollowupClientName.trim();
+    if (!name) {
+      setFollowupModalIsUpdate(false);
+      setFollowupModalReady(true);
+      return;
+    }
+    const nameLower = name.toLowerCase();
+    let cancelled = false;
+
+    const applyFromList = (list: FollowupClient[]) => {
+      const matches = list.filter(
+        (x) => x.clientName.trim().toLowerCase() === nameLower
+      );
+      const forTrack = matches.find((x) => x.track === wonFollowupTrack);
+
+      if (forTrack) {
+        setFollowupModalIsUpdate(true);
+        setWonFollowupOwner(forTrack.owner ?? "");
+      } else if (!followupUserChangedTrackRef.current && matches.length > 0) {
+        const sorted = [...matches].sort(
+          (a, b) => vpdmTrackOrder(a.track) - vpdmTrackOrder(b.track)
+        );
+        const pick = sorted[0];
+        setWonFollowupTrack(pick.track);
+        setWonFollowupOwner(pick.owner ?? "");
+        setFollowupModalIsUpdate(true);
+      } else {
+        setFollowupModalIsUpdate(false);
+        setWonFollowupOwner((prev) =>
+          followupUserChangedTrackRef.current ? prev : ""
+        );
+      }
+    };
+
+    void (async () => {
+      try {
+        const cached = followupModalListCacheRef.current;
+        const cacheHit = cached !== null && cached.nameKey === nameLower;
+        if (!cacheHit) {
+          setFollowupModalReady(false);
+          const list = await apiGet<FollowupClient[]>("/followup-clients");
+          if (cancelled) return;
+          followupModalListCacheRef.current = { nameKey: nameLower, list };
+          applyFromList(list);
+        } else {
+          if (cancelled) return;
+          applyFromList(cached.list);
+        }
+      } catch {
+        if (!cancelled) {
+          followupModalListCacheRef.current = null;
+          setFollowupModalIsUpdate(false);
+          setWonFollowupOwner((prev) =>
+            followupUserChangedTrackRef.current ? prev : ""
+          );
+        }
+      } finally {
+        if (!cancelled) setFollowupModalReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wonFollowupOpen, wonFollowupClientName, wonFollowupTrack]);
 
   const queryLower = useMemo(() => query.trim().toLowerCase(), [query]);
 
@@ -181,9 +289,10 @@ export function PipelineClientsPage() {
     setBusy(true);
     setLocalError(null);
     try {
-      await addClient(name, source);
+      await addClient(name, source, addStage);
       setClientName("");
       setSource("ads");
+      setAddStage(stagesForAdd[0]?.key ?? "lead_generated");
       toastSuccess("Client added");
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Failed to add client");
@@ -225,12 +334,89 @@ export function PipelineClientsPage() {
     }
   }
 
+  function closeWonFollowupModal() {
+    followupUserChangedTrackRef.current = false;
+    followupModalListCacheRef.current = null;
+    setFollowupModalReady(false);
+    setWonFollowupOpen(false);
+    setWonFollowupClientName("");
+    setWonFollowupTrack(VPDM_TRACKS[0]);
+    setWonFollowupOwner("");
+  }
+
+  /** Deal Won (step 6): open follow-up modal without advancing the pipeline. */
+  function openFollowupModalForDealWon(c: PipelineClient) {
+    if (c.stage !== "deal_won") return;
+    followupUserChangedTrackRef.current = false;
+    setFollowupModalReady(false);
+    setWonFollowupClientName(c.clientName);
+    setWonFollowupTrack(VPDM_TRACKS[0]);
+    setWonFollowupOwner("");
+    setWonFollowupOpen(true);
+  }
+
+  async function submitWonFollowupAdd() {
+    const name = wonFollowupClientName.trim();
+    if (!name) return;
+    setBusy(true);
+    setLocalError(null);
+    try {
+      const list = await apiGet<FollowupClient[]>("/followup-clients");
+      const nameLower = name.toLowerCase();
+      const existing = list.find(
+        (x) => x.track === wonFollowupTrack && x.clientName.trim().toLowerCase() === nameLower
+      );
+      if (existing) {
+        await apiSendJson<FollowupClient>(
+          `/followup-clients/${encodeURIComponent(existing.id)}`,
+          "PATCH",
+          {
+            track: wonFollowupTrack,
+            clientName: name,
+            owner: wonFollowupOwner.trim() || null,
+          }
+        );
+        closeWonFollowupModal();
+        toastSuccess("Client Followup updated");
+      } else {
+        await apiSendJson<FollowupClient>("/followup-clients", "POST", {
+          track: wonFollowupTrack,
+          clientName: name,
+          owner: wonFollowupOwner.trim() || null,
+        });
+        closeWonFollowupModal();
+        toastSuccess("Added to Client Followup");
+      }
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Failed to save follow-up");
+      toastApiError(err, "Failed to save follow-up");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAdvanceClient(c: PipelineClient) {
+    try {
+      setBusy(true);
+      const updated = await advanceClient(c.id);
+      toastSuccess("Moved to next stage");
+      if (updated.stage === "deal_won") {
+        openFollowupModalForDealWon(updated);
+      }
+    } catch (err) {
+      toastApiError(err, "Failed to move to next stage");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="pipeline-page">
       <section className="panel pipeline-intro-panel">
         <h2 className="pipeline-title">Client Pipeline</h2>
         <p className="pipeline-subtitle">
-          Add a new client and move them step-by-step. Showing clients: {total}
+          Add a new client at any pipeline step, then move them forward as needed. Showing clients:{" "}
+          {total}
         </p>
 
         <form onSubmit={(e) => void onSubmit(e)} className="pipeline-add-form">
@@ -249,6 +435,19 @@ export function PipelineClientsPage() {
             <option value="referral">Referral</option>
             <option value="call">Call</option>
             <option value="other">Other</option>
+          </select>
+          <select
+            className="input"
+            aria-label="Add client at pipeline stage"
+            value={addStage}
+            onChange={(e) => setAddStage(e.target.value)}
+            disabled={stagesForAdd.length === 0}
+          >
+            {stagesForAdd.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.order}. {s.label}
+              </option>
+            ))}
           </select>
           <button type="submit" className="btn primary" disabled={busy}>
             Add Client
@@ -391,20 +590,21 @@ export function PipelineClientsPage() {
                               type="button"
                               className="btn ghost sm"
                               disabled={busy || isTerminalStage(c.stage)}
-                              onClick={async () => {
-                                try {
-                                  setBusy(true);
-                                  await advanceClient(c.id);
-                                  toastSuccess("Moved to next stage");
-                                } catch (err) {
-                                  toastApiError(err, "Failed to move to next stage");
-                                } finally {
-                                  setBusy(false);
-                                }
-                              }}
+                              onClick={() => void handleAdvanceClient(c)}
                             >
                               Next
                             </button>
+                            {c.stage === "deal_won" ? (
+                              <button
+                                type="button"
+                                className="btn ghost sm"
+                                disabled={busy}
+                                title="Add to Client Followup"
+                                onClick={() => openFollowupModalForDealWon(c)}
+                              >
+                                Follow-up
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="btn ghost sm danger"
@@ -537,20 +737,21 @@ export function PipelineClientsPage() {
                                     type="button"
                                     className="btn ghost sm"
                                     disabled={busy || isTerminalStage(c.stage)}
-                                    onClick={async () => {
-                                      try {
-                                        setBusy(true);
-                                        await advanceClient(c.id);
-                                        toastSuccess("Moved to next stage");
-                                      } catch (err) {
-                                        toastApiError(err, "Failed to move to next stage");
-                                      } finally {
-                                        setBusy(false);
-                                      }
-                                    }}
+                                    onClick={() => void handleAdvanceClient(c)}
                                   >
                                     Next
                                   </button>
+                                  {c.stage === "deal_won" ? (
+                                    <button
+                                      type="button"
+                                      className="btn ghost sm"
+                                      disabled={busy}
+                                      title="Add to Client Followup"
+                                      onClick={() => openFollowupModalForDealWon(c)}
+                                    >
+                                      Follow-up
+                                    </button>
+                                  ) : null}
                                   <button
                                     type="button"
                                     className="btn ghost sm danger"
@@ -606,6 +807,117 @@ export function PipelineClientsPage() {
           </div>
         ) : null}
       </section>
+
+      {wonFollowupOpen ? (
+        <div
+          className="pipeline-modal-backdrop"
+          role="presentation"
+          onClick={() => closeWonFollowupModal()}
+        >
+          <form
+            className="pipeline-modal"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submitWonFollowupAdd();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pipeline-modal-head">
+              <h3>
+                {!followupModalReady
+                  ? "Client Followup"
+                  : followupModalIsUpdate
+                    ? "Update Client Followup?"
+                    : "Add to Client Followup?"}
+              </h3>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => closeWonFollowupModal()}
+                aria-label="Close"
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </div>
+
+            <p className="pipeline-modal-subtitle">
+              {!followupModalReady ? (
+                <>Loading follow-up data…</>
+              ) : (
+                <>
+                  <strong>{wonFollowupClientName}</strong> is in Deal Won.{" "}
+                  {followupModalIsUpdate ? (
+                    <>
+                      They already have a row on <strong>{wonFollowupTrack}</strong>—update owner
+                      below or skip. Manage all entries on the{" "}
+                      <Link to="/followup-clients">Client Followup</Link> page.
+                    </>
+                  ) : (
+                    <>
+                      Add them to a follow-up track for daily check-ins, or skip and add later on
+                      the <Link to="/followup-clients">Client Followup</Link> page.
+                    </>
+                  )}
+                </>
+              )}
+            </p>
+
+            <label className="field">
+              <span className="label">Track</span>
+              <select
+                className="input"
+                value={wonFollowupTrack}
+                onChange={(e) => {
+                  followupUserChangedTrackRef.current = true;
+                  setWonFollowupTrack(e.target.value);
+                }}
+                aria-label="Follow-up track"
+              >
+                {VPDM_TRACKS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span className="label">Owner (optional)</span>
+              <input
+                className="input"
+                value={wonFollowupOwner}
+                onChange={(e) => setWonFollowupOwner(e.target.value)}
+                maxLength={120}
+                placeholder="e.g. team member name"
+              />
+            </label>
+
+            <div className="pipeline-modal-actions">
+              <button type="button" className="btn ghost" onClick={() => closeWonFollowupModal()}>
+                Skip
+              </button>
+              <button
+                type="submit"
+                className="btn primary"
+                disabled={busy || !followupModalReady}
+                aria-label={
+                  !followupModalReady
+                    ? "Loading"
+                    : followupModalIsUpdate
+                      ? "Update Client Followup entry"
+                      : "Add to Client Followup"
+                }
+              >
+                {!followupModalReady
+                  ? "Loading…"
+                  : followupModalIsUpdate
+                    ? "Update follow-up"
+                    : "Add to follow-up"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       {lostModalOpen ? (
         <div className="pipeline-modal-backdrop" role="presentation" onClick={() => closeLostModal()}>

@@ -54,6 +54,28 @@ function stageByKey(key: string) {
   return STAGES.find((s) => s.key === key);
 }
 
+/** Initial stage for new clients: optional body.stage; Deal Lost is not allowed (use Mark Lost). */
+function resolveCreateStage(body: Record<string, unknown>) {
+  const raw = (body as { stage?: unknown }).stage;
+  if (raw === undefined || raw === null || raw === "") {
+    return STAGES[0];
+  }
+  const key = typeof raw === "string" ? raw.trim() : "";
+  if (!key) {
+    return STAGES[0];
+  }
+  if (key === "deal_lost") {
+    throw new BadRequestException(
+      "Cannot add a client directly to Deal Lost. Add the client first, then use Mark Lost."
+    );
+  }
+  const s = stageByKey(key);
+  if (!s) {
+    throw new BadRequestException("Invalid pipeline stage");
+  }
+  return s;
+}
+
 function toDto(row: {
   id: string;
   clientName: string;
@@ -114,14 +136,14 @@ export class PipelineClientsService {
       throw new BadRequestException("clientName is required");
     }
 
-    const first = STAGES[0];
+    const initial = resolveCreateStage(body);
     try {
       const saved = await this.prisma.pipelineClient.create({
         data: {
           clientName,
           source,
-          stage: first.key,
-          stageOrder: first.order,
+          stage: initial.key,
+          stageOrder: initial.order,
           userId,
         },
       });

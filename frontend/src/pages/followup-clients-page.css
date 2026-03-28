@@ -91,13 +91,15 @@
 
 .followup-modal {
   width: min(96vw, 520px);
-  background: #fff;
+  background: var(--bg-elevated);
+  color: var(--text);
   border-radius: 12px;
   border: 1px solid var(--border);
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  box-shadow: var(--shadow-card);
 }
 
 .followup-modal-head {
@@ -110,6 +112,33 @@
   margin: 0;
   font-size: 1.1rem;
   font-weight: 800;
+  color: var(--text);
+}
+
+.followup-modal .field .label {
+  color: var(--text-muted);
+}
+
+.followup-modal .input,
+.followup-modal select.input {
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+}
+
+.followup-modal .input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.followup-modal .btn.ghost {
+  color: var(--text);
+  background: var(--btn-secondary-bg);
+  border-color: var(--border);
+}
+
+.followup-modal .btn.ghost:hover {
+  background: var(--btn-secondary-hover);
 }
 
 .followup-modal-actions {
