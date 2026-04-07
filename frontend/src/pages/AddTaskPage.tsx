@@ -44,6 +44,7 @@ type FormState = {
   repeatWeekday: (typeof WEEKDAYS)[number];
   repeatDayOfMonth: string;
   repeatIntervalDays: string;
+  vpdmArea: "main" | "comments";
 };
 
 function defaultIntervalDays(): string {
@@ -64,6 +65,7 @@ function emptyForm(frequency: Frequency): FormState {
     repeatWeekday: defaultWeekday(),
     repeatDayOfMonth: defaultDayOfMonth(),
     repeatIntervalDays: defaultIntervalDays(),
+    vpdmArea: "main",
   };
 }
 
@@ -120,6 +122,7 @@ export function AddTaskPage() {
         repeatIntervalDays:
           form.frequency === "interval" ? Number(form.repeatIntervalDays) : null,
         category: form.category.trim() || null,
+        vpdmArea: form.frequency === "once" ? form.vpdmArea : "main",
       };
 
       if (editingTaskId) {
@@ -154,6 +157,7 @@ export function AddTaskPage() {
       repeatWeekday: (task.repeatWeekday as (typeof WEEKDAYS)[number]) ?? defaultWeekday(),
       repeatDayOfMonth: String(task.repeatDayOfMonth ?? defaultDayOfMonth()),
       repeatIntervalDays: String(task.repeatIntervalDays ?? defaultIntervalDays()),
+      vpdmArea: task.vpdmArea ?? "main",
     });
   }
 
@@ -257,6 +261,28 @@ export function AddTaskPage() {
                 : "Task will start showing from this date."}
             </p>
           </label>
+
+          {form.frequency === "once" ? (
+            <label className="field">
+              <span className="label">Show in</span>
+              <select
+                className="input"
+                value={form.vpdmArea}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    vpdmArea: e.target.value as "main" | "comments",
+                  }))
+                }
+              >
+                <option value="main">Role & Responsibility table (according to category)</option>
+                <option value="comments">Comments table (Export/Print)</option>
+              </select>
+              <p className="add-task-help">
+                Choose where this one-time task should appear in the Export/Print sheet.
+              </p>
+            </label>
+          ) : null}
 
           {form.frequency === "weekly" ? (
             <label className="field">

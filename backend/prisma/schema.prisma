@@ -124,9 +124,14 @@ model TaskSeries {
   /// VPDM daily sheet: section / role (e.g. Office Operational Task)
   category String? @db.VarChar(120)
 
+  /// VPDM daily sheet placement: main operational table vs inline comments.
+  /// Values used by the app: "main" | "comments"
+  vpdmArea String @default("main") @map("vpdm_area") @db.VarChar(20)
+
   @@index([createdAt], map: "idx_task_series_created_at")
   @@index([frequency], map: "idx_task_series_frequency")
   @@index([userId], map: "idx_task_series_user_id")
+  @@index([vpdmArea], map: "idx_task_series_vpdm_area")
   @@index([repeatWeekday], map: "idx_task_series_repeat_weekday")
   @@index([repeatDayOfMonth], map: "idx_task_series_repeat_day_of_month")
   @@index([repeatIntervalDays], map: "idx_task_series_repeat_interval_days")

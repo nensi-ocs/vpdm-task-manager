@@ -57,6 +57,7 @@ type ModalState = {
   repeatWeekday: (typeof WEEKDAYS)[number];
   repeatDayOfMonth: string;
   repeatIntervalDays: string;
+  vpdmArea: "main" | "comments";
 };
 
 function defaultIntervalDays(): string {
@@ -76,6 +77,7 @@ function emptyModal(frequency: Frequency): ModalState {
     repeatWeekday: defaultWeekday(),
     repeatDayOfMonth: defaultDayOfMonth(),
     repeatIntervalDays: defaultIntervalDays(),
+    vpdmArea: "main",
   };
 }
 
@@ -203,6 +205,7 @@ export function TaskBoard() {
       repeatIntervalDays:
         modal.frequency === "interval" ? Number(modal.repeatIntervalDays) : null,
       category: modal.category.trim() || null,
+      vpdmArea: modal.frequency === "once" ? modal.vpdmArea : "main",
     };
     if (modal.mode === "create") {
       await addTask(payload);
@@ -498,6 +501,28 @@ export function TaskBoard() {
                   : "Task will start showing from this date."}
               </p>
             </label>
+
+            {modal.frequency === "once" ? (
+              <label className="field">
+                <span className="label">Show in</span>
+                <select
+                  className="input"
+                  value={modal.vpdmArea}
+                  onChange={(e) =>
+                    setModal((prev) => ({
+                      ...prev,
+                      vpdmArea: e.target.value as "main" | "comments",
+                    }))
+                  }
+                >
+                  <option value="main">Role & Responsibility table (according to category)</option>
+                  <option value="comments">Comments table (Export/Print)</option>
+                </select>
+                <p className="modal-help">
+                  Choose where this one-time task should appear in the Export/Print sheet.
+                </p>
+              </label>
+            ) : null}
 
             {modal.frequency === "weekly" ? (
               <label className="field">

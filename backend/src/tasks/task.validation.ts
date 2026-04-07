@@ -1,4 +1,4 @@
-import type { Frequency, ImportedTask, Priority } from "./task.types";
+import type { Frequency, ImportedTask, Priority, VpdmArea } from "./task.types";
 
 function ymdInKolkata(date: Date): string {
   const fmt = new Intl.DateTimeFormat("en-US", {
@@ -26,6 +26,11 @@ export function isFrequency(x: unknown): x is Frequency {
     x === "interval" ||
     x === "once"
   );
+}
+
+function normalizeVpdmArea(value: unknown): VpdmArea {
+  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return raw === "comments" ? "comments" : "main";
 }
 
 const WEEKDAYS = [
@@ -149,5 +154,6 @@ export function normalizeImportedTask(o: Record<string, unknown>): ImportedTask 
         ? null
         : String(o.endDate).slice(0, 10),
     category: optStr("category", 120),
+    vpdmArea: normalizeVpdmArea((o as { vpdmArea?: unknown }).vpdmArea),
   };
 }

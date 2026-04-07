@@ -1,5 +1,6 @@
 export type Priority = "low" | "medium" | "high";
 export type Frequency = "daily" | "weekly" | "monthly" | "interval" | "once";
+export type VpdmArea = "main" | "comments";
 
 export type Task = {
   id: number;
@@ -19,6 +20,8 @@ export type Task = {
   updatedAt: string;
   /** VPDM sheet section (e.g. Office, Tools) */
   category: string | null;
+  /** VPDM daily sheet placement */
+  vpdmArea: VpdmArea;
 };
 
 export type TaskUpsertPayload = Omit<Task, "id" | "createdAt" | "updatedAt" | "endDate">;

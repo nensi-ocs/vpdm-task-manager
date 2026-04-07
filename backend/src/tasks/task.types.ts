@@ -1,5 +1,6 @@
 export type Priority = "low" | "medium" | "high";
 export type Frequency = "daily" | "weekly" | "monthly" | "interval" | "once";
+export type VpdmArea = "main" | "comments";
 
 export type TaskDTO = {
   id: number;
@@ -18,6 +19,7 @@ export type TaskDTO = {
   createdAt: string;
   updatedAt: string;
   category: string | null;
+  vpdmArea: VpdmArea;
 };
 
 export type ImportedTask = TaskDTO;

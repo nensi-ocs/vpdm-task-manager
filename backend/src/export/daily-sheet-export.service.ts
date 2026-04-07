@@ -14,6 +14,8 @@ const TICK_DONE = "☑";
 
 type TaskSeriesSchedule = TaskSeries & {
   repeatIntervalDays?: number | null;
+  /** Optional for backward compatibility with older exports */
+  vpdmArea?: string | null;
 };
 
 const VPDM_TRACKS = [
@@ -116,14 +118,28 @@ function buildSections(
   isoDate: string,
   completionDatesByTaskId: Map<number, Set<string>>
 ): Section[] {
-  const visible = tasks.filter((t) =>
-    isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
+  const visible = tasks.filter((t) => {
+    const area = t.vpdmArea ?? "main";
+    const category = normCat(t.category);
+
+    return (
+      area !== "comments" &&
+      category !== "meeting" &&
+      isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
+    );
+  });
+
+  const catNames = new Set(
+    categoryRows
+      .map((c) => normCat(c.name))
+      .filter((name) => name !== "meeting")
   );
 
-  const catNames = new Set(categoryRows.map((c) => normCat(c.name)));
   const sections: Section[] = [];
 
   for (const c of categoryRows) {
+    if (normCat(c.name) === "meeting") continue;
+
     const ts = sortForSection(
       visible.filter((t) => normCat(t.category) === normCat(c.name))
     );
@@ -133,6 +149,11 @@ function buildSections(
   const orphans = sortForSection(
     visible.filter((t) => {
       const n = normCat(t.category);
+
+      // CRITICAL FIX:
+      // do not let Meeting fall into Uncategorized
+      if (n === "meeting") return false;
+
       return !n || !catNames.has(n);
     })
   );
@@ -160,8 +181,6 @@ function vpdmDateLabel(isoDate: string): string {
 }
 
 function normTrack(s: string): string {
-  // Track values in DB are free-form; normalize common variations so
-  // "Amazon Client Follow-Up", "Amazon_Client Followup", etc still match.
   return s
     .toLowerCase()
     .replace(/[_-]+/g, " ")
@@ -389,13 +408,30 @@ function buildCommentPairs(
   completionDatesByTaskId: Map<number, Set<string>>
 ): CommentPair[] {
   const tasks = sortForSection(oneTimeTasks);
-  const totalPairs = Math.max(1, Math.ceil(tasks.length / 2));
+
+  const left: TaskSeriesSchedule[] = [];
+  const right: TaskSeriesSchedule[] = [];
+
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+
+  for (const t of tasks) {
+    const c = norm(t.category ?? "");
+    const isAmazon = c.includes("amazon");
+    const isFlipkart = c.includes("flipkart");
+    if (isFlipkart && !isAmazon) right.push(t);
+    else if (isAmazon && !isFlipkart) left.push(t);
+    else if (left.length <= right.length) left.push(t);
+    else right.push(t);
+  }
+
+  const totalPairs = Math.max(left.length, right.length);
+  if (totalPairs === 0) return [];
 
   const pairs: CommentPair[] = [];
 
   for (let i = 0; i < totalPairs; i++) {
-    const leftTask = tasks[i * 2];
-    const rightTask = tasks[i * 2 + 1];
+    const leftTask = left[i];
+    const rightTask = right[i];
 
     pairs.push({
       leftText: leftTask?.title ?? "",
@@ -420,25 +456,33 @@ function buildCommentPairs(
   return pairs;
 }
 
-function writeInlineCommentsHeader(ws: ExcelJS.Worksheet, r: number): void {
+function writeInlineTwoColumnSectionHeader(
+  ws: ExcelJS.Worksheet,
+  r: number,
+  title: string
+): void {
   ws.mergeCells(`E${r}:J${r}`);
   ws.mergeCells(`K${r}:P${r}`);
 
-  const amazonHead = ws.getCell(r, 5);
-  amazonHead.value = "Comments";
-  fillHexSolid(amazonHead, COLOR_COMMENTS_AND_CATEGORY);
-  amazonHead.font = { bold: true, size: 11 };
-  amazonHead.alignment = { horizontal: "center", vertical: "middle" };
+  const leftHead = ws.getCell(r, 5);
+  leftHead.value = title;
+  fillHexSolid(leftHead, COLOR_COMMENTS_AND_CATEGORY);
+  leftHead.font = { bold: true, size: 11 };
+  leftHead.alignment = { horizontal: "center", vertical: "middle" };
 
-  const flipkartHead = ws.getCell(r, 11);
-  flipkartHead.value = "Comments";
-  fillHexSolid(flipkartHead, COLOR_COMMENTS_AND_CATEGORY);
-  flipkartHead.font = { bold: true, size: 11 };
-  flipkartHead.alignment = { horizontal: "center", vertical: "middle" };
+  const rightHead = ws.getCell(r, 11);
+  rightHead.value = title;
+  fillHexSolid(rightHead, COLOR_COMMENTS_AND_CATEGORY);
+  rightHead.font = { bold: true, size: 11 };
+  rightHead.alignment = { horizontal: "center", vertical: "middle" };
 
   applyThinBordersToRowRange(ws, r, 5, 16);
 
   ws.getRow(r).height = 18;
+}
+
+function writeInlineCommentsHeader(ws: ExcelJS.Worksheet, r: number): void {
+  writeInlineTwoColumnSectionHeader(ws, r, "Comments");
 }
 
 function writeInlineCommentData(
@@ -486,6 +530,45 @@ function writeInlineCommentData(
   ws.getRow(r).height = leftText || rightText ? 18 : 15;
 }
 
+/**
+ * Meeting in the right grid as two side-by-side tables (E–J / K–P), same cell pattern as Comments.
+ * Tasks are split left/right using the same Amazon / Flipkart / balance rules as comments.
+ */
+function writeMeetingSectionRightGrid(
+  ws: ExcelJS.Worksheet,
+  startRow: number,
+  tasks: TaskSeriesSchedule[],
+  isoDate: string,
+  completionDatesByTaskId: Map<number, Set<string>>,
+  startSeq: number
+): { nextRow: number; nextSeq: number; lastRow: number } {
+  const pairs = buildCommentPairs(
+    tasks,
+    isoDate,
+    completionDatesByTaskId
+  );
+
+  let r = startRow;
+  let seq = startSeq;
+
+  // Do not write A–D: meeting rows may reuse sheet rows that already have Role and Responsibility data.
+  writeInlineTwoColumnSectionHeader(ws, r, "Meeting");
+  let lastRow = r;
+  r++;
+
+  for (const pair of pairs) {
+    writeInlineCommentData(ws, r, pair);
+
+    if (pair.leftText) seq += 1;
+    if (pair.rightText) seq += 1;
+
+    lastRow = r;
+    r++;
+  }
+
+  return { nextRow: r, nextSeq: seq, lastRow };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replaceAll("&", "&amp;")
@@ -495,7 +578,6 @@ function escapeHtml(s: string): string {
     .replaceAll("'", "&#39;");
 }
 
-/** Word-wrap one paragraph to lines of at most `maxLen` chars; split long words if needed. */
 function wrapParagraphToLines(paragraph: string, maxLen: number): string[] {
   const trimmed = paragraph.trim();
   if (!trimmed) {
@@ -536,7 +618,6 @@ function wrapParagraphToLines(paragraph: string, maxLen: number): string[] {
   return out.length > 0 ? out : [""];
 }
 
-/** Escape cell text and insert `<br />` when content would exceed the max line length. */
 function wrapHtmlCellText(raw: string, maxCharsPerLine: number): string {
   if (!raw) {
     return "";
@@ -733,7 +814,6 @@ function buildHtmlTableFromWorksheet(
   return lines.join("");
 }
 
-/** CSS for the daily-sheet print HTML (screen + print). */
 function printDocumentCss(): string {
   return [
     "@page { size: A4 landscape; margin: 6mm; }",
@@ -745,8 +825,8 @@ function printDocumentCss(): string {
       "word-wrap: break-word; overflow-wrap: anywhere; word-break: break-word; " +
       "hyphens: auto; -webkit-hyphens: auto; background:#fff; color:#000; }",
     "#print-root table td { border: 1px solid #000 !important; box-sizing: border-box; }",
-    "#print-root table td[data-col=\"4\"] { border-left: 2px solid #000 !important; }",
-    "#print-root table td[data-col=\"1\"][colspan=\"3\"] { border-right: 2px solid #000 !important; }",
+    '#print-root table td[data-col="4"] { border-left: 2px solid #000 !important; }',
+    '#print-root table td[data-col="1"][colspan="3"] { border-right: 2px solid #000 !important; }',
     "@media print { .no-print { display: none; } .sheet-wrap { transform: none !important; } }",
   ].join("\n");
 }
@@ -781,11 +861,11 @@ function buildPrintHtmlCombined(
   lines.push("      if(!wrap) continue;");
   lines.push("      wrap.style.transform='scale(1)';");
   lines.push("      var PX_PER_MM = 96 / 25.4;");
-  lines.push("      var pageW = 297 * PX_PER_MM;"); // A4 landscape width (mm)
-  lines.push("      var pageH = 210 * PX_PER_MM;"); // A4 landscape height (mm)
-  lines.push("      var marginMm = 6;"); // must match @page margin
+  lines.push("      var pageW = 297 * PX_PER_MM;");
+  lines.push("      var pageH = 210 * PX_PER_MM;");
+  lines.push("      var marginMm = 6;");
   lines.push("      var margin = marginMm * PX_PER_MM;");
-  lines.push("      var safety = 4;"); // keep a tiny buffer to avoid bottom clipping
+  lines.push("      var safety = 4;");
   lines.push("      var targetW = pageW - margin * 2 - safety;");
   lines.push("      var targetH = pageH - margin * 2 - safety;");
   lines.push("      var rect = wrap.getBoundingClientRect();");
@@ -831,7 +911,6 @@ function writePipelineSectionRightOnly(
   const START_COL = 5; // E
   const END_COL = 16; // P
   const TOTAL_COLS = END_COL - START_COL + 1;
-
   const stageTitleFill = "DAF2D0";
 
   const byStage = new Map<string, PipelineRow[]>();
@@ -846,7 +925,6 @@ function writePipelineSectionRightOnly(
     arr.sort((a, b) => a.clientName.localeCompare(b.clientName));
   }
 
-  // Title row
   ws.mergeCells(r, START_COL, r, END_COL);
   const titleCell = ws.getCell(r, START_COL);
   titleCell.value = "Client Pipeline";
@@ -873,7 +951,6 @@ function writePipelineSectionRightOnly(
     );
   }
 
-  // Auto-distribute E:P width across current stage count (handles 7, 8, etc.)
   const baseWidth = Math.floor(TOTAL_COLS / stageCount);
   const remainder = TOTAL_COLS % stageCount;
   const manualWidths = Array.from(
@@ -893,7 +970,6 @@ function writePipelineSectionRightOnly(
     colCursor = endCol + 1;
   }
 
-  // Step titles in one line
   for (let i = 0; i < stageCount; i++) {
     const stage = stages[i]!;
     const { startCol, endCol } = stageRanges[i]!;
@@ -920,13 +996,11 @@ function writePipelineSectionRightOnly(
   ws.getRow(r).height = 22;
   r++;
 
-  // max client rows
   let maxRows = 0;
   for (const s of stages) {
     maxRows = Math.max(maxRows, s.rows.length);
   }
 
-  // data rows
   for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
     for (let i = 0; i < stageCount; i++) {
       const stage = stages[i]!;
@@ -937,11 +1011,9 @@ function writePipelineSectionRightOnly(
       }
 
       const cell = ws.getCell(r, startCol);
-
       const clientName = stage.rows[rowIndex];
 
       cell.value = clientName ? `${rowIndex + 1}. ${clientName}` : "";
-
       cell.alignment = {
         horizontal: "left",
         vertical: "middle",
@@ -955,7 +1027,6 @@ function writePipelineSectionRightOnly(
     r++;
   }
 
-  // if no clients anywhere
   if (maxRows === 0) {
     for (let i = 0; i < stageCount; i++) {
       const { startCol, endCol } = stageRanges[i]!;
@@ -996,7 +1067,7 @@ export class DailySheetExportService {
 
     const day = new Date(`${isoDate}T12:00:00.000Z`);
 
-    const [categories, tasks, followups, fuCompletions, pipelineRows] =
+    const [categories, tasksRaw, followups, fuCompletions, pipelineRows] =
       await Promise.all([
         this.prisma.category.findMany({
           where: { userId },
@@ -1013,6 +1084,8 @@ export class DailySheetExportService {
         }),
         this.pipelineClients.findAllForUser(userId),
       ]);
+
+    const tasks = tasksRaw as unknown as TaskSeriesSchedule[];
 
     const fromDay = new Date(
       `${minTaskSeriesStartIso(tasks, isoDate)}T12:00:00.000Z`
@@ -1040,14 +1113,28 @@ export class DailySheetExportService {
       completionDatesByTaskId
     );
 
-    const oneTimeTasks = tasks.filter(
-      (t) =>
+    const commentTasks = tasks.filter((t) => {
+      const area = t.vpdmArea ?? "main";
+      return (
         t.frequency === "once" &&
+        area === "comments" &&
         isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
+      );
+    });
+
+    const meetingTasks = sortForSection(
+      tasks.filter((t) => {
+        const area = t.vpdmArea ?? "main";
+        return (
+          area !== "comments" &&
+          normCat(t.category) === "meeting" &&
+          isTaskVisibleWithCarryForward(t, isoDate, completionDatesByTaskId)
+        );
+      })
     );
 
     const commentPairs = buildCommentPairs(
-      oneTimeTasks,
+      commentTasks,
       isoDate,
       completionDatesByTaskId
     );
@@ -1137,7 +1224,7 @@ export class DailySheetExportService {
       writeRightSide(currentRow);
       currentRow += 1;
 
-      const rowsToWrite: (TaskSeries | null)[] =
+      const rowsToWrite: (TaskSeriesSchedule | null)[] =
         sec.tasks.length > 0 ? sec.tasks : [null];
 
       for (const task of rowsToWrite) {
@@ -1181,28 +1268,25 @@ export class DailySheetExportService {
       }
     }
 
-    // Follow-ups are rendered on the right side using `dataRowIndex`.
-    // If there are more follow-up clients than task/comment rows generated on
-    // the left side, the current sheet would truncate the remaining follow-ups.
     const maxFollowupRows = Math.max(
       ...VPDM_TRACKS.map((t) => clientsForTrack(followups, t).length),
       0
     );
+
     while (dataRowIndex < maxFollowupRows) {
       writeRightSide(currentRow);
 
-      // Keep the left side visually empty for these extra rows.
       for (let c = 1; c <= 4; c++) {
         const cell = ws.getCell(currentRow, c);
         cell.value = "";
         applyThinBorder(cell);
       }
+
       ws.getRow(currentRow).height = 15;
       currentRow += 1;
     }
 
     if (!commentsStarted && commentPairs.length > 0) {
-      // Keep one visual gap before comments, consistent with inline rendering.
       applyEmptyRightGrid(ws, currentRow);
       rightSectionLastRow = currentRow;
       currentRow += 1;
@@ -1233,17 +1317,42 @@ export class DailySheetExportService {
       commentRowCursor += 1;
     }
 
-    const pipelineAnchorRow =
+    const meetingAnchorRow =
       commentSectionLastRow > 0 ? commentSectionLastRow : rightSectionLastRow;
 
-    const pipelineStartRow = pipelineAnchorRow + 2;
+    // After Comments (E–P), place Meeting in the same right-hand grid (E–P), then Client Pipeline below.
+    // One blank row after the last comment row, then Meeting (fills the gap above Pipeline in typical exports).
+    const rowAfterCommentsGap =
+      commentSectionLastRow > 0 ? commentSectionLastRow + 2 : meetingAnchorRow + 2;
 
-    writePipelineSectionRightOnly(
+    let pipelineStartRow: number;
+
+    if (meetingTasks.length > 0) {
+      const meetingStartRow = Math.max(rowAfterCommentsGap, 4);
+      const meetingResult = writeMeetingSectionRightGrid(
+        ws,
+        meetingStartRow,
+        meetingTasks,
+        isoDate,
+        completionDatesByTaskId,
+        seq
+      );
+      seq = meetingResult.nextSeq;
+      currentRow = Math.max(currentRow, meetingResult.nextRow);
+      // One blank row between Meeting and Pipeline (full-width pipeline block below).
+      pipelineStartRow = meetingResult.nextRow + 1;
+    } else {
+      pipelineStartRow = Math.max(rowAfterCommentsGap, currentRow);
+    }
+
+    const pipelineEndRow = writePipelineSectionRightOnly(
       ws,
       pipelineStartRow,
       pipelineRows,
       this.pipelineClients.listStages()
     );
+
+    currentRow = Math.max(currentRow, pipelineEndRow);
 
     const buf = await wb.xlsx.writeBuffer();
     return Buffer.from(buf);

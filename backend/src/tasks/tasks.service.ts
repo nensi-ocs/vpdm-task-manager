@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
-import type { Frequency, ImportedTask, Priority, TaskDTO } from "./task.types";
+import type { Frequency, ImportedTask, Priority, TaskDTO, VpdmArea } from "./task.types";
 import {
   isFrequency,
   isImportedTask,
@@ -26,6 +26,7 @@ type TaskRecord = {
   createdAt: Date;
   updatedAt: Date;
   category: string | null;
+  vpdmArea: string;
 };
 
 function optStr(val: unknown, max: number): string | null {
@@ -53,6 +54,11 @@ function optRepeatIntervalDays(val: unknown): number | null {
     if (Number.isInteger(n) && n >= 1 && n <= 365) return n;
   }
   return null;
+}
+
+function normalizeVpdmArea(value: unknown): VpdmArea {
+  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return raw === "comments" ? "comments" : "main";
 }
 
 function isIsoDate(date: string): boolean {
@@ -99,6 +105,7 @@ export class TasksService {
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
       category: task.category,
+      vpdmArea: normalizeVpdmArea(task.vpdmArea),
     };
   }
 
@@ -143,6 +150,7 @@ export class TasksService {
         endDate: null,
         userId,
         category: optStr(body.category, 120),
+        vpdmArea: normalizeVpdmArea((body as { vpdmArea?: unknown }).vpdmArea),
       },
     });
     return this.toDto(saved as TaskRecord);
@@ -168,6 +176,7 @@ export class TasksService {
       repeatIntervalDays?: number | null;
       startDate?: Date;
       category?: string | null;
+      vpdmArea?: string;
     } = {};
 
     if (body.title !== undefined) {
@@ -213,6 +222,9 @@ export class TasksService {
         throw new BadRequestException("startDate must be YYYY-MM-DD");
       }
       data.startDate = parsed;
+    }
+    if ((body as { vpdmArea?: unknown }).vpdmArea !== undefined) {
+      data.vpdmArea = normalizeVpdmArea((body as { vpdmArea?: unknown }).vpdmArea);
     }
 
     if (Object.keys(data).length === 0) {
