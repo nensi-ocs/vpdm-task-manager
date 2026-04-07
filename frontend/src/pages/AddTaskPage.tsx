@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
-import type { Frequency, Priority } from "../types";
-import type { Task, TaskUpsertPayload } from "../types";
+import type { Filter, Frequency, Priority, Task, TaskUpsertPayload } from "../types";
 import { useCategories } from "../useCategories";
 import { useTasks } from "../useTasks";
 import { toastApiError, toastSuccess } from "../toast";
@@ -34,6 +33,45 @@ function formatDate(iso: string): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function formatFrequencyDisplay(task: Task): string {
+  switch (task.frequency) {
+    case "daily":
+      return "Daily";
+    case "weekly":
+      return `Weekly (${task.repeatWeekday ?? "—"})`;
+    case "monthly":
+      return `Monthly (day ${task.repeatDayOfMonth ?? "—"})`;
+    case "interval":
+      return `Every ${task.repeatIntervalDays ?? "—"} days`;
+    case "once":
+      return task.vpdmArea === "comments"
+        ? "One-time · Comments"
+        : "One-time · Main";
+    default:
+      return task.frequency;
+  }
+}
+
+function taskMatchesListFilter(task: Task, filter: Filter): boolean {
+  if (filter === "all") return true;
+  if (filter === "active") return !task.endDate;
+  return Boolean(task.endDate);
+}
+
+function taskMatchesSearch(task: Task, queryLower: string): boolean {
+  if (!queryLower) return true;
+  const title = (task.title ?? "").toLowerCase();
+  const category = (task.category ?? "").toLowerCase();
+  const frequencyText = formatFrequencyDisplay(task).toLowerCase();
+  const frequencyKind = task.frequency.toLowerCase();
+  return (
+    title.includes(queryLower) ||
+    category.includes(queryLower) ||
+    frequencyText.includes(queryLower) ||
+    frequencyKind.includes(queryLower)
+  );
 }
 
 type FormState = {
@@ -86,10 +124,26 @@ export function AddTaskPage() {
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const pageSize = 10;
   const [page, setPage] = useState(1);
+  const [listFilter, setListFilter] = useState<Filter>("all");
+  const [taskSearch, setTaskSearch] = useState("");
 
   const categoryOptions = useMemo(() => {
     return [...categories.map((c) => c.name)].sort((a, b) => a.localeCompare(b));
   }, [categories]);
+
+  const statusFilteredTasks = useMemo(
+    () => tasks.filter((t) => taskMatchesListFilter(t, listFilter)),
+    [tasks, listFilter]
+  );
+
+  const searchQueryLower = taskSearch.trim().toLowerCase();
+
+  const filteredTasks = useMemo(() => {
+    if (!searchQueryLower) return statusFilteredTasks;
+    return statusFilteredTasks.filter((t) =>
+      taskMatchesSearch(t, searchQueryLower)
+    );
+  }, [statusFilteredTasks, searchQueryLower]);
 
   // If DB categories load (or change) and current selection is empty, pick the first DB category.
   // This keeps the dropdown "DB-only" while still allowing smooth creation.
@@ -167,15 +221,14 @@ export function AddTaskPage() {
     setLocalError(null);
   }
 
-  const totalItems = tasks.length;
+  const totalItems = filteredTasks.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startIdx = (page - 1) * pageSize;
-  const pageTasks = tasks.slice(startIdx, startIdx + pageSize);
+  const pageTasks = filteredTasks.slice(startIdx, startIdx + pageSize);
 
   useEffect(() => {
-    // Reset table paging when tasks list changes (add/edit/stop/delete).
     setPage(1);
-  }, [tasks.length]);
+  }, [tasks.length, listFilter, taskSearch]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -370,9 +423,44 @@ export function AddTaskPage() {
       <section className="panel add-task-panel add-task-table-panel">
         <div className="add-task-list-head">
           <h3>Task List</h3>
+          {tasks.length > 0 ? (
+            <div className="add-task-list-controls">
+              <label className="add-task-search">
+                <span className="add-task-list-filter-label">Search</span>
+                <input
+                  type="search"
+                  className="input add-task-search-input"
+                  value={taskSearch}
+                  onChange={(e) => setTaskSearch(e.target.value)}
+                  placeholder="Search by task, category, or frequency…"
+                  aria-label="Search tasks by name, category, or frequency"
+                  autoComplete="off"
+                />
+              </label>
+              <label className="add-task-list-filter">
+                <span className="add-task-list-filter-label">Filter</span>
+                <select
+                  className="input add-task-filter-select"
+                  value={listFilter}
+                  onChange={(e) => setListFilter(e.target.value as Filter)}
+                  aria-label="Filter tasks by status"
+                >
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="done">Stopped</option>
+                </select>
+              </label>
+            </div>
+          ) : null}
         </div>
         {tasks.length === 0 ? (
           <p className="add-task-empty">No tasks yet.</p>
+        ) : filteredTasks.length === 0 ? (
+          <p className="add-task-empty">
+            {statusFilteredTasks.length === 0
+              ? 'No tasks match this filter. Try "All" or another option.'
+              : "No tasks match your search. Try different words or clear the search box."}
+          </p>
         ) : (
           <div className="add-task-table-wrap">
             <table className="add-task-table">
@@ -382,6 +470,7 @@ export function AddTaskPage() {
                   <th>Task</th>
                   <th>Date</th>
                   <th>Category</th>
+                  <th>Frequency</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -393,6 +482,9 @@ export function AddTaskPage() {
                     <td>{task.title}</td>
                     <td>{formatDate(task.startDate)}</td>
                     <td>{task.category ?? "-"}</td>
+                    <td className="add-task-table-freq">
+                      {formatFrequencyDisplay(task)}
+                    </td>
                     <td>{task.endDate ? "Stopped" : "Active"}</td>
                     <td>
                       <div className="row-actions">
@@ -425,9 +517,9 @@ export function AddTaskPage() {
           </div>
         )}
 
-        {tasks.length > pageSize ? (
+        {filteredTasks.length > pageSize ? (
           <Pagination
-            totalItems={tasks.length}
+            totalItems={filteredTasks.length}
             pageSize={pageSize}
             currentPage={page}
             onPageChange={setPage}
