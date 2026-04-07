@@ -143,6 +143,8 @@ function buildSections(
     const ts = sortForSection(
       visible.filter((t) => normCat(t.category) === normCat(c.name))
     );
+    if (ts.length === 0) continue;
+
     sections.push({ name: c.name, tasks: ts });
   }
 
@@ -160,10 +162,6 @@ function buildSections(
 
   if (orphans.length > 0) {
     sections.push({ name: "Uncategorized", tasks: orphans });
-  }
-
-  if (sections.length === 0) {
-    sections.push({ name: "Tasks", tasks: [] });
   }
 
   return sections;
@@ -1224,26 +1222,18 @@ export class DailySheetExportService {
       writeRightSide(currentRow);
       currentRow += 1;
 
-      const rowsToWrite: (TaskSeriesSchedule | null)[] =
-        sec.tasks.length > 0 ? sec.tasks : [null];
-
-      for (const task of rowsToWrite) {
+      for (const task of sec.tasks) {
         ws.getCell(currentRow, 1).value = seq;
         seq += 1;
 
-        if (task) {
-          ws.getCell(currentRow, 2).value = isOccurrenceCompletedInWindow(
-            task,
-            isoDate,
-            completionDatesByTaskId
-          )
-            ? TICK_DONE
-            : TICK_EMPTY;
-          ws.getCell(currentRow, 3).value = task.title;
-        } else {
-          ws.getCell(currentRow, 2).value = TICK_EMPTY;
-          ws.getCell(currentRow, 3).value = "";
-        }
+        ws.getCell(currentRow, 2).value = isOccurrenceCompletedInWindow(
+          task,
+          isoDate,
+          completionDatesByTaskId
+        )
+          ? TICK_DONE
+          : TICK_EMPTY;
+        ws.getCell(currentRow, 3).value = task.title;
 
         ws.getCell(currentRow, 1).alignment = {
           horizontal: "center",
@@ -1261,7 +1251,7 @@ export class DailySheetExportService {
 
         ws.getCell(currentRow, 4).value = "";
         applyThinBordersToRowRange(ws, currentRow, 1, 4);
-        ws.getRow(currentRow).height = task?.title ? 16.4 : 15;
+        ws.getRow(currentRow).height = task.title ? 16.4 : 15;
 
         writeRightSide(currentRow);
         currentRow += 1;
