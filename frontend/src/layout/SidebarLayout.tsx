@@ -31,6 +31,13 @@ export function SidebarLayout() {
           >
             Dashboard
           </NavLink>
+          <NavLink
+            to="/calendar"
+            className={({ isActive }) => (isActive ? "on" : "")}
+            onClick={() => setMobileOpen(false)}
+          >
+            Calendar
+          </NavLink>
           <button
             type="button"
             className={`app-nav-parent ${isTaskMenuActive ? "on" : ""}`}
