@@ -1,0 +1,68 @@
+.ddmm-date-input {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  height: 36px;
+  max-width: 220px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ddmm-date-input--form {
+  max-width: none;
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+}
+
+.ddmm-date-input-field {
+  border: none;
+  outline: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 0.35rem 0 0.55rem;
+  height: 100%;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  background: transparent;
+  font-family: inherit;
+}
+
+.ddmm-date-input--form .ddmm-date-input-field {
+  min-height: 44px;
+  padding: 0.55rem 0.35rem 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.ddmm-date-input:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.ddmm-date-input-cal {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  padding: 0 0.45rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ddmm-date-input-cal:hover {
+  color: var(--text);
+}
+
+.ddmm-date-input-cal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}

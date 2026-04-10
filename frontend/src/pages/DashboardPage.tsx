@@ -6,6 +6,8 @@ import { useFollowupClients } from "../useFollowupClients";
 import { VPDM_TRACKS } from "../vpdmCatalog";
 import type { Task } from "../types";
 import "./dashboard-page.css";
+import { DdMmYyyyDateInput } from "../components/DdMmYyyyDateInput";
+import { formatIsoDateDdMmYyyy } from "../dateFormat";
 import { Pagination } from "../components/Pagination";
 import {
   formatTaskOccurrenceDateLabel,
@@ -37,12 +39,7 @@ function sortForList(list: Task[]): Task[] {
 }
 
 function displayDate(selectedIso: string): string {
-  const selected = new Date(`${selectedIso}T12:00:00.000Z`);
-  return selected.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatIsoDateDdMmYyyy(selectedIso);
 }
 
 function taskMatchesQuery(t: Task, queryLower: string): boolean {
@@ -167,11 +164,10 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="dashboard-controls">
-          <input
-            className="date-picker"
-            type="date"
+          <DdMmYyyyDateInput
+            className="dashboard-ddmm-date"
             value={selectedDateIso}
-            onChange={(e) => setSelectedDateIso(e.target.value)}
+            onChange={setSelectedDateIso}
             aria-label="Select dashboard date"
           />
         </div>

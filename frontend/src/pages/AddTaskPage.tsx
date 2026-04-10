@@ -1,11 +1,20 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import { useAuth } from "../auth/AuthContext";
 import type { Filter, Frequency, Priority, Task, TaskUpsertPayload } from "../types";
 import { useCategories } from "../useCategories";
 import { useTasks } from "../useTasks";
 import { toastApiError, toastSuccess } from "../toast";
 import { PencilLine, Trash2 } from "lucide-react";
+import { DdMmYyyyDateInput } from "../components/DdMmYyyyDateInput";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Pagination } from "../components/Pagination";
+import { formatIsoDateDdMmYyyy } from "../dateFormat";
 import "./add-task-page.css";
 
 const WEEKDAYS = [
@@ -24,15 +33,6 @@ function defaultWeekday(): (typeof WEEKDAYS)[number] {
 
 function defaultDayOfMonth(): string {
   return String(new Date().getDate());
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(`${iso}T12:00:00.000Z`);
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function formatFrequencyDisplay(task: Task): string {
@@ -126,6 +126,9 @@ export function AddTaskPage() {
   const [page, setPage] = useState(1);
   const [listFilter, setListFilter] = useState<Filter>("all");
   const [taskSearch, setTaskSearch] = useState("");
+  const [pendingStopTaskId, setPendingStopTaskId] = useState<number | null>(
+    null
+  );
 
   const categoryOptions = useMemo(() => {
     return [...categories.map((c) => c.name)].sort((a, b) => a.localeCompare(b));
@@ -194,12 +197,21 @@ export function AddTaskPage() {
     }
   }
 
-  async function onDeleteTask(id: number) {
-    const ok = window.confirm("Stop this task from future days?");
-    if (!ok) return;
+  function requestStopTask(id: number) {
+    setPendingStopTaskId(id);
+  }
+
+  async function confirmStopTask() {
+    if (pendingStopTaskId === null) return;
+    const id = pendingStopTaskId;
+    setPendingStopTaskId(null);
     const deleted = await removeTask(id);
     if (deleted) toastSuccess("Task stopped");
   }
+
+  const cancelStopTask = useCallback(() => {
+    setPendingStopTaskId(null);
+  }, []);
 
   function onEditTask(task: Task) {
     setEditingTaskId(task.id);
@@ -236,6 +248,15 @@ export function AddTaskPage() {
 
   return (
     <main className="add-task-page">
+      <ConfirmDialog
+        open={pendingStopTaskId !== null}
+        title="Stop task"
+        message="Stop this task from future days?"
+        confirmLabel="OK"
+        cancelLabel="Cancel"
+        onConfirm={() => void confirmStopTask()}
+        onCancel={cancelStopTask}
+      />
       <section className="panel add-task-panel add-task-form-panel">
         <h2 className="add-task-title">Add Task</h2>
         <p className="add-task-subtitle">
@@ -302,11 +323,13 @@ export function AddTaskPage() {
             <span className="label">
               {form.frequency === "once" ? "Task Date" : "Start From"}
             </span>
-            <input
-              className="input"
-              type="date"
+            <DdMmYyyyDateInput
+              variant="form"
               value={form.startDate}
-              onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+              onChange={(iso) => setForm((p) => ({ ...p, startDate: iso }))}
+              aria-label={
+                form.frequency === "once" ? "Task date" : "Start from date"
+              }
             />
             <p className="add-task-help">
               {form.frequency === "once"
@@ -480,7 +503,7 @@ export function AddTaskPage() {
                   <tr key={task.id}>
                     <td>{startIdx + idx + 1}</td>
                     <td>{task.title}</td>
-                    <td>{formatDate(task.startDate)}</td>
+                    <td>{formatIsoDateDdMmYyyy(task.startDate)}</td>
                     <td>{task.category ?? "-"}</td>
                     <td className="add-task-table-freq">
                       {formatFrequencyDisplay(task)}
@@ -501,7 +524,7 @@ export function AddTaskPage() {
                         <button
                           type="button"
                           className="btn ghost sm table-icon-btn"
-                          onClick={() => void onDeleteTask(task.id)}
+                          onClick={() => requestStopTask(task.id)}
                           disabled={Boolean(task.endDate)}
                           title={task.endDate ? "Task already stopped" : "Stop task"}
                           aria-label="Stop task"

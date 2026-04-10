@@ -2,6 +2,11 @@ import { useMemo, useState } from "react";
 import type { Task } from "../types";
 import { useAuth } from "../auth/AuthContext";
 import { useTasks } from "../useTasks";
+import {
+  getNextOccurrenceExclusiveIso,
+  getTaskCompletedIsoForSelectedWindow,
+} from "../taskSchedule";
+import { formatIsoDateDdMmYyyy, formatIsoMonthYear } from "../dateFormat";
 import "./calendar-page.css";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -160,25 +165,21 @@ function getDueIsosInRange(t: Task, fromIso: string, toIsoInclusive: string): st
   return [];
 }
 
+function maxIso(a: string, b: string): string {
+  return a >= b ? a : b;
+}
+
+function minIso(a: string, b: string): string {
+  return a <= b ? a : b;
+}
+
 function fmtMonthTitle(iso: string): string {
-  const d = isoToUtcMidday(iso);
-  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  return formatIsoMonthYear(iso);
 }
 
 function fmtWeekTitle(startIso: string): string {
-  const a = isoToUtcMidday(startIso);
-  const b = isoToUtcMidday(addDaysIso(startIso, 6));
-  const sameMonth = a.getUTCMonth() === b.getUTCMonth() && a.getUTCFullYear() === b.getUTCFullYear();
-  if (sameMonth) {
-    return `${a.toLocaleDateString(undefined, {
-      month: "long",
-      year: "numeric",
-    })} (${a.getUTCDate()}–${b.getUTCDate()})`;
-  }
-  return `${a.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  })} – ${b.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+  const endIso = addDaysIso(startIso, 6);
+  return `${formatIsoDateDdMmYyyy(startIso)} – ${formatIsoDateDdMmYyyy(endIso)}`;
 }
 
 export function CalendarPage() {
@@ -194,8 +195,6 @@ export function CalendarPage() {
   }, []);
 
   const [cursorIso, setCursorIso] = useState<string>(todayIso);
-
-  const { tasks, loading, error } = useTasks(user?.id);
 
   const { fromIso, toIsoInclusive, days } = useMemo(() => {
     if (view === "week") {
@@ -216,23 +215,69 @@ export function CalendarPage() {
     return { fromIso: outDays[0]!, toIsoInclusive: outDays[outDays.length - 1]!, days: outDays };
   }, [cursorIso, view]);
 
+  const completionAnchorIso = useMemo(
+    () => maxIso(maxIso(fromIso, toIsoInclusive), todayIso),
+    [fromIso, toIsoInclusive, todayIso]
+  );
+
+  const { tasks, loading, error, completionDatesByTaskId } = useTasks(
+    user?.id,
+    completionAnchorIso
+  );
+
   const eventsByIso = useMemo(() => {
     const map = new Map<string, Task[]>();
+
+    const pushEvent = (iso: string, t: Task) => {
+      if (iso < fromIso || iso > toIsoInclusive) return;
+      const arr = map.get(iso) ?? [];
+      if (!arr.some((x) => x.id === t.id)) arr.push(t);
+      map.set(iso, arr);
+    };
+
+    const openEnd = "9999-12-31";
+
     for (const t of tasks) {
       if (t.frequency === "daily") continue;
-      const dueIsos = getDueIsosInRange(t, fromIso, toIsoInclusive);
-      for (const iso of dueIsos) {
-        const arr = map.get(iso) ?? [];
-        arr.push(t);
-        map.set(iso, arr);
+      const anchors = getDueIsosInRange(t, fromIso, toIsoInclusive);
+      for (const a of anchors) {
+        const done = getTaskCompletedIsoForSelectedWindow(t, a, completionDatesByTaskId);
+
+        if (done !== null) {
+          pushEvent(a, t);
+          if (done !== a) pushEvent(done, t);
+          continue;
+        }
+
+        if (a > todayIso) {
+          pushEvent(a, t);
+          continue;
+        }
+
+        const nextEx = getNextOccurrenceExclusiveIso(t, a);
+        const windowLast = nextEx ? addDaysIso(nextEx, -1) : openEnd;
+        const spanStart = maxIso(a, fromIso);
+        const spanEnd = minIso(
+          minIso(minIso(todayIso, toIsoInclusive), windowLast),
+          t.endDate ?? openEnd
+        );
+        if (spanStart <= spanEnd) {
+          for (let cur = spanStart; cur <= spanEnd; cur = addDaysIso(cur, 1)) {
+            pushEvent(cur, t);
+          }
+        }
       }
     }
+
     for (const [k, arr] of map) {
-      arr.sort((a, b) => (a.priority === b.priority ? a.title.localeCompare(b.title) : a.priority.localeCompare(b.priority)));
+      arr.sort((a, b) =>
+        a.priority === b.priority ? a.title.localeCompare(b.title) : a.priority.localeCompare(b.priority)
+      );
       map.set(k, arr);
     }
+
     return map;
-  }, [tasks, fromIso, toIsoInclusive]);
+  }, [tasks, fromIso, toIsoInclusive, todayIso, completionDatesByTaskId]);
 
   const title = view === "week" ? fmtWeekTitle(fromIso) : fmtMonthTitle(cursorIso);
 
@@ -326,28 +371,33 @@ export function CalendarPage() {
 
         {days.map((iso) => {
           const d = isoToUtcMidday(iso);
-          const inMonth = view === "week" ? true : d.getUTCMonth() === month0 && d.getUTCFullYear() === year;
-          const isToday = iso === todayIso;
+          const inMonth =
+            view === "week" ? true : d.getUTCMonth() === month0 && d.getUTCFullYear() === year;
+          const isTodayCell = iso === todayIso;
           const events = eventsByIso.get(iso) ?? [];
 
           return (
             <div
               key={iso}
-              className={`calendar-cell ${inMonth ? "" : "muted"} ${isToday ? "today" : ""}`}
+              className={`calendar-cell ${inMonth ? "" : "muted"} ${isTodayCell ? "today" : ""}`}
             >
               <div className="calendar-cell-head">
-                <div className="calendar-date">{d.getUTCDate()}</div>
+                <div
+                  className={`calendar-date${view === "week" ? " calendar-date--full" : ""}`}
+                >
+                  {view === "week"
+                    ? formatIsoDateDdMmYyyy(iso)
+                    : d.getUTCDate()}
+                </div>
               </div>
               <div className="calendar-events">
-                {events.length === 0 ? null : (
-                  <>
-                    {events.map((t) => (
+                {events.length === 0
+                  ? null
+                  : events.map((t) => (
                       <div key={`${iso}-${t.id}`} className={`cal-event p-${t.priority}`}>
                         <span className="cal-event-title">{t.title}</span>
                       </div>
                     ))}
-                  </>
-                )}
               </div>
             </div>
           );

@@ -10,18 +10,26 @@
   padding: 1rem 1.1rem;
   border-bottom: 1px solid var(--border);
   gap: 1rem;
+  min-width: 0;
 }
 
 .task-board .vpm-title {
   font-size: 1.9rem;
   font-weight: 800;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-board .vpm-controls {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.7rem;
   align-items: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .task-board .vpm-controls .btn {
@@ -29,6 +37,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .task-board .vpm-controls .btn svg {
@@ -48,20 +57,10 @@
   text-overflow: ellipsis;
 }
 
-.task-board .date-picker {
-  height: 36px;
-  padding: 0 0.55rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #fff;
-  font-size: 0.86rem;
-  color: var(--text-muted);
-}
-
-.task-board .date-picker:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-soft);
-  border-color: var(--accent);
+.task-board .vpm-controls .ddmm-date-input {
+  flex: 0 1 220px;
+  min-width: 0;
+  max-width: 220px;
 }
 
 .task-board .vpm-main {
@@ -314,22 +313,36 @@
 @media (max-width: 768px) {
   .task-board .vpm-head {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     padding: 0.75rem 0.8rem;
+  }
+
+  .task-board .vpm-title {
+    width: 100%;
   }
 
   .task-board .vpm-controls {
     width: 100%;
+    max-width: 100%;
     gap: 0.45rem;
+    flex-wrap: wrap;
+    align-items: stretch;
+    align-content: flex-start;
+    overflow: visible;
   }
 
-  .task-board .date-picker {
+  /* Full-width date row; Excel + Print share one row below */
+  .task-board .vpm-controls .ddmm-date-input {
+    flex: 1 1 100%;
     width: 100%;
+    max-width: none;
+    min-width: 0;
     min-height: 38px;
   }
 
   .task-board .vpm-controls .btn {
-    flex: 1 1 calc(50% - 0.5rem);
+    flex: 1 1 0;
+    min-width: 0;
     justify-content: center;
   }
 
@@ -370,6 +383,7 @@
     font-size: 1.25rem;
   }
 
+  /* Narrow phones: date + each action full width (3 rows) */
   .task-board .vpm-controls .btn {
     flex: 1 1 100%;
   }

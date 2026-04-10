@@ -1,3 +1,4 @@
+import { formatIsoDateDdMmYyyy } from "./dateFormat";
 import type { Filter, Frequency, Priority, Task } from "./types";
 
 export const priorityOrder: Record<Priority, number> = {
@@ -19,11 +20,7 @@ export function sortTasks(list: Task[], by: "priority" | "createdAt"): Task[] {
 }
 
 export function formatDue(iso: string): string {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatIsoDateDdMmYyyy(iso);
 }
 
 function optOk(v: unknown, kind: "string" | "number"): boolean {

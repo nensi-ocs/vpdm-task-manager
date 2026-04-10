@@ -11,6 +11,7 @@ import {
 } from "./vpdmCatalog";
 import "./TaskBoard.css";
 import { FileSpreadsheet, Printer, X } from "lucide-react";
+import { DdMmYyyyDateInput } from "./components/DdMmYyyyDateInput";
 import { Pagination } from "./components/Pagination";
 import {
   formatTaskOccurrenceDateLabel,
@@ -267,11 +268,9 @@ export function TaskBoard() {
       <header className="vpm-head">
         <div className="vpm-title">VPDM Task Manager</div>
         <div className="vpm-controls">
-          <input
-            className="date-picker"
-            type="date"
+          <DdMmYyyyDateInput
             value={selectedDateIso}
-            onChange={(e) => setSelectedDateIso(e.target.value)}
+            onChange={setSelectedDateIso}
             aria-label="Select schedule date"
           />
           <button
@@ -487,12 +486,14 @@ export function TaskBoard() {
               <span className="label">
                 {modal.frequency === "once" ? "Task Date" : "Start From"}
               </span>
-              <input
-                className="input"
-                type="date"
+              <DdMmYyyyDateInput
+                variant="form"
                 value={modal.startDate}
-                onChange={(e) =>
-                  setModal((prev) => ({ ...prev, startDate: e.target.value }))
+                onChange={(iso) =>
+                  setModal((prev) => ({ ...prev, startDate: iso }))
+                }
+                aria-label={
+                  modal.frequency === "once" ? "Task date" : "Start from date"
                 }
               />
               <p className="modal-help">

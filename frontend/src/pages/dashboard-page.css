@@ -43,23 +43,15 @@
   justify-content: flex-end;
 }
 
-.dashboard-page .date-picker {
+.dashboard-page .dashboard-ddmm-date {
   min-height: 44px;
   height: auto;
-  padding: 0.35rem 0.55rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #fff;
-  font-size: 0.86rem;
-  color: var(--text-muted);
+  max-width: 12rem;
   width: auto;
-  max-width: 100%;
 }
 
-.dashboard-page .date-picker:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-soft);
-  border-color: var(--accent);
+.dashboard-page .dashboard-ddmm-date .ddmm-date-input-field {
+  font-size: 0.86rem;
 }
 
 .dashboard-metrics {
@@ -406,8 +398,9 @@
     justify-content: stretch;
   }
 
-  .dashboard-page .date-picker {
+  .dashboard-page .dashboard-ddmm-date {
     width: 100%;
+    max-width: none;
     min-height: 44px;
   }
 

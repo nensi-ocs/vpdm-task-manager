@@ -3,6 +3,7 @@
  * Keep in sync with backend/src/tasks/task-schedule.util.ts.
  */
 
+import { formatIsoDateDayMonthCommaYear } from "./dateFormat";
 import type { Task } from "./types";
 
 export const WEEKDAYS = [
@@ -261,19 +262,46 @@ export function getTaskOccurrenceAnchorIso(
   return null;
 }
 
-/** Human-readable scheduled date for the task row (uses browser locale). */
+/**
+ * First calendar day after the occurrence window that starts at `anchorIso`
+ * (weekly +7d, monthly next due, interval +N, daily +1). `null` for one-time tasks
+ * (open-ended window).
+ */
+export function getNextOccurrenceExclusiveIso(
+  t: Task,
+  anchorIso: string
+): string | null {
+  if (t.frequency === "once") return null;
+  if (t.frequency === "daily") {
+    return addDaysUtc(isoToUtcMidday(anchorIso), 1).toISOString().slice(0, 10);
+  }
+  if (t.frequency === "weekly") {
+    if (!isWeekdayOption(t.repeatWeekday)) return null;
+    return addDaysUtc(isoToUtcMidday(anchorIso), 7).toISOString().slice(0, 10);
+  }
+  if (t.frequency === "monthly") {
+    if (typeof t.repeatDayOfMonth !== "number") return null;
+    return nextMonthlyOccurrenceIsoAfter(anchorIso, t.repeatDayOfMonth);
+  }
+  if (t.frequency === "interval") {
+    if (typeof t.repeatIntervalDays !== "number" || t.repeatIntervalDays < 1) {
+      return null;
+    }
+    return addDaysUtc(isoToUtcMidday(anchorIso), t.repeatIntervalDays)
+      .toISOString()
+      .slice(0, 10);
+  }
+  return null;
+}
+
+/** Human-readable scheduled date for the task row (e.g. 10 April, 2026). */
 export function formatTaskOccurrenceDateLabel(
   task: Task,
   selectedIso: string
 ): string {
   const anchor = getTaskOccurrenceAnchorIso(task, selectedIso);
   if (!anchor) return "—";
-  const d = new Date(`${anchor}T12:00:00.000Z`);
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatIsoDateDayMonthCommaYear(anchor);
 }
 
 /**
@@ -391,10 +419,5 @@ export function formatTaskCompletedDateLabel(
     completionDatesByTaskId
   );
   if (!iso) return "—";
-  const d = new Date(`${iso}T12:00:00.000Z`);
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatIsoDateDayMonthCommaYear(iso);
 }
