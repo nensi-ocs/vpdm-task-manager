@@ -12,6 +12,19 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type ViewMode = "week" | "month";
 
+/**
+ * completed: completion date (and due date if completed on time)
+ * missed: the original due date (overdue and not completed on that due date)
+ * carry: carry-forward reminder days after the due date (not red)
+ * scheduled: future due date
+ */
+type CalendarEventVariant = "completed" | "missed" | "carry" | "scheduled";
+
+type CalendarCellEvent = {
+  task: Task;
+  variant: CalendarEventVariant;
+};
+
 const MS_DAY = 24 * 60 * 60 * 1000;
 
 function isoToUtcMidday(iso: string): Date {
@@ -226,12 +239,12 @@ export function CalendarPage() {
   );
 
   const eventsByIso = useMemo(() => {
-    const map = new Map<string, Task[]>();
+    const map = new Map<string, CalendarCellEvent[]>();
 
-    const pushEvent = (iso: string, t: Task) => {
+    const pushEvent = (iso: string, t: Task, variant: CalendarEventVariant) => {
       if (iso < fromIso || iso > toIsoInclusive) return;
       const arr = map.get(iso) ?? [];
-      if (!arr.some((x) => x.id === t.id)) arr.push(t);
+      if (!arr.some((x) => x.task.id === t.id)) arr.push({ task: t, variant });
       map.set(iso, arr);
     };
 
@@ -243,14 +256,25 @@ export function CalendarPage() {
       for (const a of anchors) {
         const done = getTaskCompletedIsoForSelectedWindow(t, a, completionDatesByTaskId);
 
+        // If completed late: keep the original due date as missed (red) and the completion date green.
         if (done !== null) {
-          pushEvent(a, t);
-          if (done !== a) pushEvent(done, t);
+          if (done === a) {
+            pushEvent(a, t, "completed");
+          } else {
+            pushEvent(a, t, "missed");
+            pushEvent(done, t, "completed");
+          }
           continue;
         }
 
         if (a > todayIso) {
-          pushEvent(a, t);
+          pushEvent(a, t, "scheduled");
+          continue;
+        }
+
+        // Due today (and not completed): keep normal styling. It becomes "missed" only after the day passes.
+        if (a === todayIso) {
+          pushEvent(a, t, "scheduled");
           continue;
         }
 
@@ -262,16 +286,23 @@ export function CalendarPage() {
           t.endDate ?? openEnd
         );
         if (spanStart <= spanEnd) {
-          for (let cur = spanStart; cur <= spanEnd; cur = addDaysIso(cur, 1)) {
-            pushEvent(cur, t);
+          // The due day is missed only after it's in the past.
+          pushEvent(a, t, "missed");
+
+          // Carry-forward reminders start the day after the due date (or later if the visible range starts later).
+          const carryStart = maxIso(addDaysIso(a, 1), spanStart);
+          for (let cur = carryStart; cur <= spanEnd; cur = addDaysIso(cur, 1)) {
+            pushEvent(cur, t, "carry");
           }
         }
       }
     }
 
     for (const [k, arr] of map) {
-      arr.sort((a, b) =>
-        a.priority === b.priority ? a.title.localeCompare(b.title) : a.priority.localeCompare(b.priority)
+      arr.sort((x, y) =>
+        x.task.priority === y.task.priority
+          ? x.task.title.localeCompare(y.task.title)
+          : x.task.priority.localeCompare(y.task.priority)
       );
       map.set(k, arr);
     }
@@ -393,8 +424,19 @@ export function CalendarPage() {
               <div className="calendar-events">
                 {events.length === 0
                   ? null
-                  : events.map((t) => (
-                      <div key={`${iso}-${t.id}`} className={`cal-event p-${t.priority}`}>
+                  : events.map(({ task: t, variant }) => (
+                      <div
+                        key={`${iso}-${t.id}`}
+                        className={`cal-event p-${t.priority}${
+                          variant === "completed"
+                            ? " cal-completed"
+                            : variant === "missed"
+                              ? " cal-missed"
+                              : variant === "carry"
+                                ? " cal-carry"
+                                : ""
+                        }`}
+                      >
                         <span className="cal-event-title">{t.title}</span>
                       </div>
                     ))}

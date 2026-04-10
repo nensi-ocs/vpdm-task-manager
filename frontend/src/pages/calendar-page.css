@@ -248,6 +248,27 @@
   background: rgba(5, 150, 105, 0.10);
 }
 
+/* Completed occurrence (overrides priority tint) */
+.cal-event.cal-completed {
+  border-color: rgba(22, 163, 74, 0.5);
+  background: rgba(22, 163, 74, 0.2);
+  color: #14532d;
+}
+
+/* Missed due date (overrides priority tint) */
+.cal-event.cal-missed {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.12);
+  color: #7f1d1d;
+}
+
+/* Carry-forward reminder days (not red) */
+.cal-event.cal-carry {
+  border-color: rgba(59, 130, 246, 0.25);
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--text);
+}
+
 .calendar-grid.week .calendar-cell {
   min-height: 220px;
 }
