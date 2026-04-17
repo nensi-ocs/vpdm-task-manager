@@ -119,6 +119,18 @@ export function DashboardPage() {
     [doneIsoByTaskId, visibleTasks]
   );
 
+  const taskCompletionPct = useMemo(() => {
+    const total = visibleTasks.length;
+    const done = rawCompletedForDate.length;
+    return total === 0 ? 0 : Math.round((done / total) * 100);
+  }, [rawCompletedForDate.length, visibleTasks.length]);
+
+  const followupCompletionPct = useMemo(() => {
+    const total = followupClients.length;
+    const done = followupCompletedCount;
+    return total === 0 ? 0 : Math.round((done / total) * 100);
+  }, [followupClients.length, followupCompletedCount]);
+
   const incompleteTasks = useMemo(
     () => filteredVisibleTasks.filter((t) => !doneIsoByTaskId.has(t.id)),
     [doneIsoByTaskId, filteredVisibleTasks]
@@ -200,6 +212,13 @@ export function DashboardPage() {
           <div className="metric-card warn">
             <div className="metric-label">Pending</div>
             <div className="metric-value">{incompleteTasks.length}</div>
+          </div>
+          <div className="metric-card info">
+            <div className="metric-label">Task completion %</div>
+            <div className="metric-value">{taskCompletionPct}%</div>
+            <div className="metric-subvalue">
+              {rawCompletedForDate.length}/{visibleTasks.length}
+            </div>
           </div>
         </div>
 
@@ -390,6 +409,13 @@ export function DashboardPage() {
           <div className="metric-card warn">
             <div className="metric-label">Pending</div>
             <div className="metric-value">{followupPendingCount}</div>
+          </div>
+          <div className="metric-card info">
+            <div className="metric-label">Follow-up completion %</div>
+            <div className="metric-value">{followupCompletionPct}%</div>
+            <div className="metric-subvalue">
+              {followupCompletedCount}/{followupClients.length}
+            </div>
           </div>
         </div>
 
