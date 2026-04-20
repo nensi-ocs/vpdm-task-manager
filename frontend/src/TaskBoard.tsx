@@ -19,6 +19,8 @@ import {
   getTaskCompletedIsoForSelectedWindow,
   isTaskVisibleWithCarryForward,
   WEEKDAYS,
+  getFirstScheduledIso,
+  weekdayNameInKolkataFromIso,
 } from "./taskSchedule";
 
 function defaultWeekday(): (typeof WEEKDAYS)[number] {
@@ -142,10 +144,15 @@ export function TaskBoard() {
       isTaskVisibleWithCarryForward(t, selectedDateIso, completionDatesByTaskId),
     [selectedDateIso, completionDatesByTaskId]
   );
+  const isSundayInKolkata = useMemo(() => {
+    return weekdayNameInKolkataFromIso(selectedDateIso) === "Sunday";
+  }, [selectedDateIso]);
   const daily = useMemo(
     () =>
       sortForSection(
-        visibleTasks.filter((t) => t.frequency === "daily" && tasksForSelectedDate(t))
+        visibleTasks.filter(
+          (t) => t.frequency === "daily" && tasksForSelectedDate(t)
+        )
       ),
     [tasksForSelectedDate, visibleTasks]
   );
@@ -193,6 +200,24 @@ export function TaskBoard() {
     e.preventDefault();
     const title = modal.title.trim();
     if (!title) return;
+
+    const firstScheduledIso = getFirstScheduledIso({
+      frequency: modal.frequency,
+      startDate: modal.startDate,
+      repeatWeekday: modal.frequency === "weekly" ? modal.repeatWeekday : null,
+      repeatDayOfMonth:
+        modal.frequency === "monthly" ? Number(modal.repeatDayOfMonth) : null,
+      repeatIntervalDays:
+        modal.frequency === "interval" ? Number(modal.repeatIntervalDays) : null,
+    });
+    const isScheduledSunday =
+      firstScheduledIso != null &&
+      weekdayNameInKolkataFromIso(firstScheduledIso) === "Sunday";
+    if (isScheduledSunday) {
+      toastApiError(new Error("Tasks cannot be scheduled on Sunday."));
+      return;
+    }
+
     const payload: TaskUpsertPayload = {
       title,
       notes: "",
@@ -219,6 +244,10 @@ export function TaskBoard() {
   }
 
   async function toggleFollowup(clientId: string, checked: boolean) {
+    if (isSundayInKolkata) {
+      toastApiError(new Error("Client follow-up is not scheduled on Sunday."));
+      return;
+    }
     await setClientCompletionForDate(clientId, selectedDateIso, checked);
   }
 
@@ -384,40 +413,46 @@ export function TaskBoard() {
 
         <section className="panel tracker-panel">
           <h2 className="tracker-title">Client Followup Tracker</h2>
-          <div className="tracker-grid">
-            {VPDM_TRACKS.map((track) => {
-              const rows = (followupGrouped.get(track) ?? []).map((r) => ({
-                id: r.id,
-                client: r.clientName,
-                owner: r.owner ?? "",
-              }));
-              return (
-                <article key={track} className="tracker-card">
-                  <h3>{track}</h3>
-                  <ul>
-                    {rows.map((entry) => {
-                      const checked = completedClientIds.includes(entry.id);
-                      return (
-                        <li key={`${track}-${entry.client}`}>
-                          <label className={checked ? "done" : ""}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) =>
-                                void toggleFollowup(entry.id, e.target.checked)
-                              }
-                            />
-                            <span>{entry.client}</span>
-                            <em>({entry.owner})</em>
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </article>
-              );
-            })}
-          </div>
+          {isSundayInKolkata ? (
+            <p className="empty-row">
+              Client follow-up is not scheduled on Sunday.
+            </p>
+          ) : (
+            <div className="tracker-grid">
+              {VPDM_TRACKS.map((track) => {
+                const rows = (followupGrouped.get(track) ?? []).map((r) => ({
+                  id: r.id,
+                  client: r.clientName,
+                  owner: r.owner ?? "",
+                }));
+                return (
+                  <article key={track} className="tracker-card">
+                    <h3>{track}</h3>
+                    <ul>
+                      {rows.map((entry) => {
+                        const checked = completedClientIds.includes(entry.id);
+                        return (
+                          <li key={`${track}-${entry.client}`}>
+                            <label className={checked ? "done" : ""}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) =>
+                                  void toggleFollowup(entry.id, e.target.checked)
+                                }
+                              />
+                              <span>{entry.client}</span>
+                              <em>({entry.owner})</em>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
       </main>
 

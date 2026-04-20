@@ -5,6 +5,7 @@ import { useTasks } from "../useTasks";
 import {
   getNextOccurrenceExclusiveIso,
   getTaskCompletedIsoForSelectedWindow,
+  weekdayNameInKolkataFromIso,
 } from "../taskSchedule";
 import { formatIsoDateDdMmYyyy, formatIsoMonthYear } from "../dateFormat";
 import "./calendar-page.css";
@@ -292,6 +293,8 @@ export function CalendarPage() {
           // Carry-forward reminders start the day after the due date (or later if the visible range starts later).
           const carryStart = maxIso(addDaysIso(a, 1), spanStart);
           for (let cur = carryStart; cur <= spanEnd; cur = addDaysIso(cur, 1)) {
+            // Match Task Manager: carry-forward reminders do not appear on Sunday (Kolkata).
+            if (weekdayNameInKolkataFromIso(cur) === "Sunday") continue;
             pushEvent(cur, t, "carry");
           }
         }

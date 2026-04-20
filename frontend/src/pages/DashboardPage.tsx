@@ -14,7 +14,9 @@ import {
   formatTaskCompletedDateLabel,
   getTaskCompletedIsoForSelectedWindow,
   isTaskVisibleWithCarryForward,
+  weekdayNameInKolkataFromIso,
 } from "../taskSchedule";
+import { toastApiError } from "../toast";
 
 function ymdInKolkata(date: Date): string {
   const fmt = new Intl.DateTimeFormat("en-US", {
@@ -72,6 +74,11 @@ export function DashboardPage() {
     completedClientIds,
     setClientCompletionForDate,
   } = useFollowupClients(user?.id, selectedDateIso);
+
+  const isSundayInKolkata = useMemo(
+    () => weekdayNameInKolkataFromIso(selectedDateIso) === "Sunday",
+    [selectedDateIso]
+  );
 
   const followupCompletedCount = useMemo(
     () => followupClients.filter((c) => completedClientIds.includes(c.id)).length,
@@ -131,6 +138,12 @@ export function DashboardPage() {
     return total === 0 ? 0 : Math.round((done / total) * 100);
   }, [followupClients.length, followupCompletedCount]);
 
+  /** On Sunday, follow-up is not scheduled — show metrics like Tasks (zeros) and empty panels. */
+  const followupMetricTotal = isSundayInKolkata ? 0 : followupClients.length;
+  const followupMetricDone = isSundayInKolkata ? 0 : followupCompletedCount;
+  const followupMetricPending = isSundayInKolkata ? 0 : followupPendingCount;
+  const followupMetricPct = isSundayInKolkata ? 0 : followupCompletionPct;
+
   const incompleteTasks = useMemo(
     () => filteredVisibleTasks.filter((t) => !doneIsoByTaskId.has(t.id)),
     [doneIsoByTaskId, filteredVisibleTasks]
@@ -161,6 +174,10 @@ export function DashboardPage() {
   );
 
   async function toggleFollowup(clientId: string, checked: boolean) {
+    if (isSundayInKolkata) {
+      toastApiError(new Error("Client follow-up is not scheduled on Sunday."));
+      return;
+    }
     await setClientCompletionForDate(clientId, selectedDateIso, checked);
   }
 
@@ -400,36 +417,49 @@ export function DashboardPage() {
         <div className="dashboard-metrics dashboard-metrics-followup">
           <div className="metric-card total">
             <div className="metric-label">Clients</div>
-            <div className="metric-value">{followupClients.length}</div>
+            <div className="metric-value">{followupMetricTotal}</div>
           </div>
           <div className="metric-card good">
             <div className="metric-label">Done</div>
-            <div className="metric-value">{followupCompletedCount}</div>
+            <div className="metric-value">{followupMetricDone}</div>
           </div>
           <div className="metric-card warn">
             <div className="metric-label">Pending</div>
-            <div className="metric-value">{followupPendingCount}</div>
+            <div className="metric-value">{followupMetricPending}</div>
           </div>
           <div className="metric-card info">
             <div className="metric-label">Follow-up completion %</div>
-            <div className="metric-value">{followupCompletionPct}%</div>
+            <div className="metric-value">{followupMetricPct}%</div>
             <div className="metric-subvalue">
-              {followupCompletedCount}/{followupClients.length}
+              {followupMetricDone}/{followupMetricTotal}
             </div>
           </div>
         </div>
 
         {followupLoading ? (
           <p className="empty-row dashboard-followup-loading">Loading follow-ups…</p>
-        ) : null}
-        {!followupLoading && followupClients.length === 0 ? (
+        ) : isSundayInKolkata ? (
+          <section className="panel dashboard-followup-panel">
+            <h3 className="dashboard-followup-panel-title">By track</h3>
+            <div className="dashboard-tracker-grid">
+              {VPDM_TRACKS.map((track) => (
+                <article key={track} className="dashboard-tracker-card">
+                  <h4>{track}</h4>
+                  <ul>
+                    <li className="dashboard-tracker-empty">
+                      No follow-up scheduled for this date.
+                    </li>
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : followupClients.length === 0 ? (
           <p className="empty-row">
             No follow-up clients yet. Add them on{" "}
             <Link to="/followup-clients">Client Followup</Link>.
           </p>
-        ) : null}
-
-        {!followupLoading && followupClients.length > 0 ? (
+        ) : (
           <section className="panel dashboard-followup-panel">
             <h3 className="dashboard-followup-panel-title">By track</h3>
             <div className="dashboard-tracker-grid">
@@ -478,7 +508,7 @@ export function DashboardPage() {
               })}
             </div>
           </section>
-        ) : null}
+        )}
       </section>
     </div>
   );

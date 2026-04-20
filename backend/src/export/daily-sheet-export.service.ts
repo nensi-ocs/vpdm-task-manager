@@ -7,6 +7,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import {
   isOccurrenceCompletedInWindow,
   isTaskVisibleWithCarryForward,
+  weekdayNameInKolkataFromIso,
 } from "../tasks/task-schedule.util";
 
 const TICK_EMPTY = "❏";
@@ -1104,6 +1105,12 @@ export class DailySheetExportService {
       fuCompletions.map((c) => c.followupClientId)
     );
 
+    const isSundayKolkata = weekdayNameInKolkataFromIso(isoDate) === "Sunday";
+    const followupsForSheet = isSundayKolkata ? [] : followups;
+    const completedFuIdsForSheet = isSundayKolkata
+      ? new Set<string>()
+      : completedFuIds;
+
     const sections = buildSections(
       categories,
       tasks,
@@ -1158,8 +1165,8 @@ export class DailySheetExportService {
         ws,
         rowNumber,
         dataRowIndex,
-        followups,
-        completedFuIds
+        followupsForSheet,
+        completedFuIdsForSheet
       );
 
       if (hasFollowup) {
@@ -1259,7 +1266,7 @@ export class DailySheetExportService {
     }
 
     const maxFollowupRows = Math.max(
-      ...VPDM_TRACKS.map((t) => clientsForTrack(followups, t).length),
+      ...VPDM_TRACKS.map((t) => clientsForTrack(followupsForSheet, t).length),
       0
     );
 

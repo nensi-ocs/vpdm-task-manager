@@ -14,6 +14,19 @@ export const WEEKDAYS = [
   "Saturday",
 ] as const;
 
+export function weekdayNameInKolkataFromIso(
+  iso: string
+): (typeof WEEKDAYS)[number] | null {
+  const d = new Date(`${iso}T12:00:00.000Z`);
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    weekday: "long",
+  });
+  const name = fmt.format(d);
+  const idx = WEEKDAYS.indexOf(name as (typeof WEEKDAYS)[number]);
+  return idx >= 0 ? WEEKDAYS[idx] : null;
+}
+
 export type TaskSeriesScheduleInput = {
   id: number;
   frequency: string;
@@ -182,7 +195,9 @@ export function isTaskVisibleWithCarryForward(
   const endIso = t.endDate ? isoDateOnly(t.endDate) : null;
   if (endIso !== null && selectedIso > endIso) return false;
 
-  if (t.frequency === "daily") return true;
+  if (t.frequency === "daily") {
+    return weekdayNameInKolkataFromIso(selectedIso) !== "Sunday";
+  }
 
   const comps = completionDatesByTaskId.get(t.id);
 
@@ -208,6 +223,10 @@ export function isTaskVisibleWithCarryForward(
     const nextExclusive = isoDateOnly(addDaysUtc(isoToUtcMidday(periodStartIso), 7));
 
     const doneIso = firstCompletionInRange(comps, periodStartIso, nextExclusive);
+    if (weekdayNameInKolkataFromIso(selectedIso) === "Sunday") {
+      if (doneIso == null) return selectedIso === periodStartIso;
+      return selectedIso === periodStartIso || selectedIso === doneIso;
+    }
     if (doneIso == null) return selectedIso >= periodStartIso && selectedIso < nextExclusive;
     return selectedIso === periodStartIso || selectedIso === doneIso;
   }
@@ -226,6 +245,10 @@ export function isTaskVisibleWithCarryForward(
 
     const nextExclusive = nextMonthlyOccurrenceIsoAfter(L, repeatDom);
     const doneIso = firstCompletionInRange(comps, L, nextExclusive);
+    if (weekdayNameInKolkataFromIso(selectedIso) === "Sunday") {
+      if (doneIso == null) return selectedIso === L;
+      return selectedIso === L || selectedIso === doneIso;
+    }
     if (doneIso == null) return selectedIso >= L && selectedIso < nextExclusive;
     return selectedIso === L || selectedIso === doneIso;
   }
@@ -245,12 +268,19 @@ export function isTaskVisibleWithCarryForward(
     const nextExclusive = isoDateOnly(addDaysUtc(isoToUtcMidday(periodStartIso), n));
 
     const doneIso = firstCompletionInRange(comps, periodStartIso, nextExclusive);
+    if (weekdayNameInKolkataFromIso(selectedIso) === "Sunday") {
+      if (doneIso == null) return selectedIso === periodStartIso;
+      return selectedIso === periodStartIso || selectedIso === doneIso;
+    }
     if (doneIso == null) return selectedIso >= periodStartIso && selectedIso < nextExclusive;
     return selectedIso === periodStartIso || selectedIso === doneIso;
   }
 
   if (t.frequency === "once") {
     if (!hasCompletionOnOrAfter(comps, seriesStartIso, endIso)) {
+      if (weekdayNameInKolkataFromIso(selectedIso) === "Sunday") {
+        return selectedIso === seriesStartIso;
+      }
       return selectedIso >= seriesStartIso;
     }
     let best: string | null = null;

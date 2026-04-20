@@ -16,6 +16,61 @@ export const WEEKDAYS = [
   "Saturday",
 ] as const;
 
+export function weekdayNameInKolkataFromIso(
+  iso: string
+): (typeof WEEKDAYS)[number] | null {
+  // Use UTC midday to avoid timezone edge cases around midnight.
+  const d = new Date(`${iso}T12:00:00.000Z`);
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    weekday: "long",
+  });
+  const name = fmt.format(d);
+  const idx = WEEKDAYS.indexOf(name as (typeof WEEKDAYS)[number]);
+  return idx >= 0 ? WEEKDAYS[idx] : null;
+}
+
+/**
+ * First scheduled occurrence date for a task series based on recurrence rules.
+ * This is what users typically mean by the task's "schedule day".
+ */
+export function getFirstScheduledIso(input: {
+  frequency: Task["frequency"];
+  startDate: string;
+  repeatWeekday: Task["repeatWeekday"] | null;
+  repeatDayOfMonth: Task["repeatDayOfMonth"] | null;
+  repeatIntervalDays: Task["repeatIntervalDays"] | null;
+}): string | null {
+  const seriesStartIso = input.startDate;
+
+  if (input.frequency === "daily") return seriesStartIso;
+
+  if (input.frequency === "weekly") {
+    if (!isWeekdayOption(input.repeatWeekday)) return null;
+    const startDate = isoToUtcMidday(seriesStartIso);
+    const startDow = startDate.getUTCDay();
+    const targetDow = WEEKDAYS.indexOf(input.repeatWeekday);
+    const diff = (targetDow - startDow + 7) % 7;
+    return addDaysUtc(startDate, diff).toISOString().slice(0, 10);
+  }
+
+  if (input.frequency === "monthly") {
+    if (typeof input.repeatDayOfMonth !== "number") return null;
+    return getMonthlyFirstDueIso(seriesStartIso, input.repeatDayOfMonth);
+  }
+
+  if (input.frequency === "interval") {
+    if (typeof input.repeatIntervalDays !== "number" || input.repeatIntervalDays < 1) {
+      return null;
+    }
+    return seriesStartIso;
+  }
+
+  if (input.frequency === "once") return seriesStartIso;
+
+  return null;
+}
+
 function isoToUtcMidday(iso: string): Date {
   return new Date(`${iso}T12:00:00.000Z`);
 }
@@ -307,6 +362,10 @@ export function formatTaskOccurrenceDateLabel(
 /**
  * Whether the task appears on selectedIso, including carry-forward until the
  * next scheduled occurrence (completion does NOT hide it).
+ *
+ * Sunday (Asia/Kolkata): incomplete tasks are not carried on that calendar day
+ * — only the true scheduled day (anchor) or a completion recorded that day.
+ * Daily tasks are hidden every Sunday.
  */
 export function isTaskVisibleWithCarryForward(
   t: Task,
@@ -318,7 +377,9 @@ export function isTaskVisibleWithCarryForward(
   const endIso = t.endDate;
   if (endIso !== null && selectedIso > endIso) return false;
 
-  if (t.frequency === "daily") return true;
+  if (t.frequency === "daily") {
+    return weekdayNameInKolkataFromIso(selectedIso) !== "Sunday";
+  }
 
   const doneIso = getTaskCompletedIsoForSelectedWindow(
     t,
@@ -327,6 +388,17 @@ export function isTaskVisibleWithCarryForward(
   );
   const anchorIso = getTaskOccurrenceAnchorIso(t, selectedIso);
   if (!anchorIso) return false;
+
+  // On Sundays, don't show carry-forward tasks.
+  // Show only if it's the scheduled day (anchor) or the completion day.
+  if (weekdayNameInKolkataFromIso(selectedIso) === "Sunday") {
+    if (t.frequency === "once") {
+      if (doneIso == null) return selectedIso === seriesStartIso;
+      return selectedIso === seriesStartIso || selectedIso === doneIso;
+    }
+    if (doneIso == null) return selectedIso === anchorIso;
+    return selectedIso === anchorIso || selectedIso === doneIso;
+  }
 
   if (t.frequency === "weekly") {
     // If completed: show only on scheduled day + completion day (not other days).

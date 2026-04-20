@@ -15,17 +15,8 @@ import { DdMmYyyyDateInput } from "../components/DdMmYyyyDateInput";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Pagination } from "../components/Pagination";
 import { formatIsoDateDdMmYyyy } from "../dateFormat";
+import { WEEKDAYS, getFirstScheduledIso, weekdayNameInKolkataFromIso } from "../taskSchedule";
 import "./add-task-page.css";
-
-const WEEKDAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
 
 function defaultWeekday(): (typeof WEEKDAYS)[number] {
   return WEEKDAYS[new Date().getDay()];
@@ -166,6 +157,25 @@ export function AddTaskPage() {
     if (!title) return;
 
     try {
+      const firstScheduledIso = getFirstScheduledIso({
+        frequency: form.frequency,
+        startDate: form.startDate,
+        repeatWeekday: form.frequency === "weekly" ? form.repeatWeekday : null,
+        repeatDayOfMonth:
+          form.frequency === "monthly" ? Number(form.repeatDayOfMonth) : null,
+        repeatIntervalDays:
+          form.frequency === "interval" ? Number(form.repeatIntervalDays) : null,
+      });
+      const isScheduledSunday =
+        firstScheduledIso != null &&
+        weekdayNameInKolkataFromIso(firstScheduledIso) === "Sunday";
+      if (isScheduledSunday) {
+        const err = new Error("Tasks cannot be scheduled on Sunday.");
+        setLocalError(err.message);
+        toastApiError(err);
+        return;
+      }
+
       const payload: TaskUpsertPayload = {
         title,
         notes: "",
