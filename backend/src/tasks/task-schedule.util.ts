@@ -49,6 +49,12 @@ function addDaysUtc(utcDate: Date, days: number): Date {
   return new Date(utcDate.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+function shiftSundayToMondayIso(iso: string): string {
+  return weekdayNameInKolkataFromIso(iso) === "Sunday"
+    ? addDaysUtc(isoToUtcMidday(iso), 1).toISOString().slice(0, 10)
+    : iso;
+}
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -219,7 +225,7 @@ export function isTaskVisibleWithCarryForward(
       (selectedDate.getTime() - firstDue.getTime()) / msDay
     );
     const k = Math.floor(daysDiff / 7);
-    const periodStartIso = isoDateOnly(addDaysUtc(firstDue, k * 7));
+    const periodStartIso = shiftSundayToMondayIso(isoDateOnly(addDaysUtc(firstDue, k * 7)));
     const nextExclusive = isoDateOnly(addDaysUtc(isoToUtcMidday(periodStartIso), 7));
 
     const doneIso = firstCompletionInRange(comps, periodStartIso, nextExclusive);
@@ -243,14 +249,15 @@ export function isTaskVisibleWithCarryForward(
     );
     if (L === null) return false;
 
+    const shiftedL = shiftSundayToMondayIso(L);
     const nextExclusive = nextMonthlyOccurrenceIsoAfter(L, repeatDom);
     const doneIso = firstCompletionInRange(comps, L, nextExclusive);
     if (weekdayNameInKolkataFromIso(selectedIso) === "Sunday") {
-      if (doneIso == null) return selectedIso === L;
-      return selectedIso === L || selectedIso === doneIso;
+      if (doneIso == null) return selectedIso === shiftedL;
+      return selectedIso === shiftedL || selectedIso === doneIso;
     }
-    if (doneIso == null) return selectedIso >= L && selectedIso < nextExclusive;
-    return selectedIso === L || selectedIso === doneIso;
+    if (doneIso == null) return selectedIso >= shiftedL && selectedIso < nextExclusive;
+    return selectedIso === shiftedL || selectedIso === doneIso;
   }
 
   if (t.frequency === "interval") {
@@ -264,7 +271,7 @@ export function isTaskVisibleWithCarryForward(
     const daysDiff = Math.round((selected.getTime() - start.getTime()) / msDay);
     if (daysDiff < 0) return false;
     const k = Math.floor(daysDiff / n);
-    const periodStartIso = isoDateOnly(addDaysUtc(start, k * n));
+    const periodStartIso = shiftSundayToMondayIso(isoDateOnly(addDaysUtc(start, k * n)));
     const nextExclusive = isoDateOnly(addDaysUtc(isoToUtcMidday(periodStartIso), n));
 
     const doneIso = firstCompletionInRange(comps, periodStartIso, nextExclusive);
@@ -277,11 +284,12 @@ export function isTaskVisibleWithCarryForward(
   }
 
   if (t.frequency === "once") {
+    const shiftedStartIso = shiftSundayToMondayIso(seriesStartIso);
     if (!hasCompletionOnOrAfter(comps, seriesStartIso, endIso)) {
       if (weekdayNameInKolkataFromIso(selectedIso) === "Sunday") {
-        return selectedIso === seriesStartIso;
+        return selectedIso === shiftedStartIso;
       }
-      return selectedIso >= seriesStartIso;
+      return selectedIso >= shiftedStartIso;
     }
     let best: string | null = null;
     for (const d of comps ?? []) {
@@ -289,8 +297,8 @@ export function isTaskVisibleWithCarryForward(
       if (endIso !== null && d > endIso) continue;
       if (best === null || d < best) best = d;
     }
-    if (!best) return selectedIso >= seriesStartIso;
-    return selectedIso === seriesStartIso || selectedIso === best;
+    if (!best) return selectedIso >= shiftedStartIso;
+    return selectedIso === shiftedStartIso || selectedIso === best;
   }
 
   return false;

@@ -249,6 +249,9 @@ export function CalendarPage() {
       map.set(iso, arr);
     };
 
+    const shiftSundayToMonday = (iso: string): string =>
+      weekdayNameInKolkataFromIso(iso) === "Sunday" ? addDaysIso(iso, 1) : iso;
+
     const openEnd = "9999-12-31";
 
     for (const t of tasks) {
@@ -256,42 +259,43 @@ export function CalendarPage() {
       const anchors = getDueIsosInRange(t, fromIso, toIsoInclusive);
       for (const a of anchors) {
         const done = getTaskCompletedIsoForSelectedWindow(t, a, completionDatesByTaskId);
+        const dueIso = shiftSundayToMonday(a);
 
         // If completed late: keep the original due date as missed (red) and the completion date green.
         if (done !== null) {
-          if (done === a) {
-            pushEvent(a, t, "completed");
+          if (done === dueIso) {
+            pushEvent(dueIso, t, "completed");
           } else {
-            pushEvent(a, t, "missed");
+            pushEvent(dueIso, t, "missed");
             pushEvent(done, t, "completed");
           }
           continue;
         }
 
-        if (a > todayIso) {
-          pushEvent(a, t, "scheduled");
+        if (dueIso > todayIso) {
+          pushEvent(dueIso, t, "scheduled");
           continue;
         }
 
         // Due today (and not completed): keep normal styling. It becomes "missed" only after the day passes.
-        if (a === todayIso) {
-          pushEvent(a, t, "scheduled");
+        if (dueIso === todayIso) {
+          pushEvent(dueIso, t, "scheduled");
           continue;
         }
 
         const nextEx = getNextOccurrenceExclusiveIso(t, a);
         const windowLast = nextEx ? addDaysIso(nextEx, -1) : openEnd;
-        const spanStart = maxIso(a, fromIso);
+        const spanStart = maxIso(dueIso, fromIso);
         const spanEnd = minIso(
           minIso(minIso(todayIso, toIsoInclusive), windowLast),
           t.endDate ?? openEnd
         );
         if (spanStart <= spanEnd) {
           // The due day is missed only after it's in the past.
-          pushEvent(a, t, "missed");
+          pushEvent(dueIso, t, "missed");
 
           // Carry-forward reminders start the day after the due date (or later if the visible range starts later).
-          const carryStart = maxIso(addDaysIso(a, 1), spanStart);
+          const carryStart = maxIso(addDaysIso(dueIso, 1), spanStart);
           for (let cur = carryStart; cur <= spanEnd; cur = addDaysIso(cur, 1)) {
             // Match Task Manager: carry-forward reminders do not appear on Sunday (Kolkata).
             if (weekdayNameInKolkataFromIso(cur) === "Sunday") continue;

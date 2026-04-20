@@ -79,6 +79,12 @@ function addDaysUtc(utcDate: Date, days: number): Date {
   return new Date(utcDate.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+function shiftSundayToMondayIso(iso: string): string {
+  return weekdayNameInKolkataFromIso(iso) === "Sunday"
+    ? addDaysUtc(isoToUtcMidday(iso), 1).toISOString().slice(0, 10)
+    : iso;
+}
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -267,7 +273,7 @@ export function getTaskOccurrenceAnchorIso(
     ).toISOString().slice(0, 10);
 
     if (selectedIso >= periodStartIso && selectedIso < nextExclusive) {
-      return periodStartIso;
+      return shiftSundayToMondayIso(periodStartIso);
     }
     return null;
   }
@@ -285,7 +291,7 @@ export function getTaskOccurrenceAnchorIso(
     if (L === null) return null;
 
     const nextExclusive = nextMonthlyOccurrenceIsoAfter(L, repeatDom);
-    if (selectedIso >= L && selectedIso < nextExclusive) return L;
+    if (selectedIso >= L && selectedIso < nextExclusive) return shiftSundayToMondayIso(L);
     return null;
   }
 
@@ -304,13 +310,13 @@ export function getTaskOccurrenceAnchorIso(
     const nextExclusive = addDaysUtc(isoToUtcMidday(periodStartIso), n).toISOString().slice(0, 10);
 
     if (selectedIso >= periodStartIso && selectedIso < nextExclusive) {
-      return periodStartIso;
+      return shiftSundayToMondayIso(periodStartIso);
     }
     return null;
   }
 
   if (t.frequency === "once") {
-    if (selectedIso >= seriesStartIso) return seriesStartIso;
+    if (selectedIso >= seriesStartIso) return shiftSundayToMondayIso(seriesStartIso);
     return null;
   }
 
