@@ -47,6 +47,22 @@ export async function apiDelete(path: string): Promise<void> {
   if (!res.ok) throw new Error(await readError(res));
 }
 
+export async function apiSendFormData<T>(
+  path: string,
+  method: string,
+  body: FormData
+): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    ...fetchOpts,
+    method,
+    body,
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
+}
+
 /** GET binary (e.g. Excel export) with auth cookies. */
 export async function apiGetBlob(path: string): Promise<Blob> {
   const res = await fetch(`${BASE}${path}`, { ...fetchOpts, method: "GET" });

@@ -157,7 +157,13 @@ export class PipelineClientsService {
   }
 
   async updateForUser(userId: string, id: string, body: Record<string, unknown>) {
-    const patch: { clientName?: string; source?: string } = {};
+    const patch: {
+      clientName?: string;
+      source?: string;
+      stage?: string;
+      stageOrder?: number;
+      lostReason?: string | null;
+    } = {};
 
     if (body.clientName !== undefined) {
       const clientName =
@@ -167,6 +173,24 @@ export class PipelineClientsService {
     }
     if ((body as { source?: unknown }).source !== undefined) {
       patch.source = normalizeSource((body as { source?: unknown }).source);
+    }
+    if ((body as { stage?: unknown }).stage !== undefined) {
+      const raw = (body as { stage?: unknown }).stage;
+      const key = typeof raw === "string" ? raw.trim() : "";
+      if (!key) throw new BadRequestException("stage is required");
+      if (key === "deal_lost") {
+        throw new BadRequestException(
+          "Cannot set Deal Lost via update. Use Mark Lost."
+        );
+      }
+      const s = stageByKey(key);
+      if (!s) {
+        throw new BadRequestException("Invalid pipeline stage");
+      }
+      patch.stage = s.key;
+      patch.stageOrder = s.order;
+      // If moving out of deal_lost, clear lost reason.
+      if (s.key !== "deal_lost") patch.lostReason = null;
     }
 
     if (Object.keys(patch).length === 0) {

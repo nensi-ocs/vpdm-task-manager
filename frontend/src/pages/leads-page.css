@@ -1,0 +1,440 @@
+.leads-page {
+  display: grid;
+  gap: 16px;
+  padding: 1rem 1.1rem 2rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+}
+
+.leads-page .panel {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.leads-intro-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.leads-title {
+  margin: 0;
+}
+
+.leads-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.leads-intro-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.leads-import {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 34rem;
+}
+
+.leads-import-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.leads-import-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.leads-import-row .input[type="file"] {
+  flex: 1 1 360px;
+  min-width: 260px;
+}
+
+.leads-file-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.leads-file-label > span {
+  font-weight: 600;
+}
+
+.leads-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.leads-field-label {
+  font-weight: 600;
+}
+
+.leads-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr) minmax(0, 0.85fr) minmax(0, 0.85fr);
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.leads-sync {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.leads-sync-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 360px;
+  min-width: 0;
+}
+
+.leads-sync-error {
+  color: var(--danger);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leads-error {
+  color: var(--danger);
+  margin: 0.25rem 0 0;
+}
+
+.leads-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.leads-table-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.leads-rows {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.leads-rows .input {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.leads-rows-label {
+  font-weight: 600;
+}
+
+.leads-table-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Same as categories/pipeline: one horizontal strip + themed scrollbar */
+.leads-table-wrap {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.leads-table-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.leads-table-wrap::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+.leads-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.leads-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.leads-table {
+  flex: 0 0 auto;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: #fff;
+  min-width: 720px;
+}
+
+@media (min-width: 900px) {
+  .leads-table {
+    min-width: 820px;
+  }
+}
+
+.leads-table th,
+.leads-table td {
+  padding: 0.55rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  text-align: left;
+}
+
+.leads-table tbody tr:hover {
+  background: rgba(61, 90, 254, 0.04);
+}
+
+.leads-table tbody tr:nth-child(even) {
+  background: rgba(20, 30, 60, 0.015);
+}
+
+.leads-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.leads-table th {
+  color: #73819a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.leads-table thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.leads-cell {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leads-cell.strong {
+  font-weight: 700;
+}
+
+.col-date {
+  width: 90px;
+}
+.col-name {
+  width: 160px;
+}
+.col-email {
+  width: 240px;
+}
+.col-phone {
+  width: 160px;
+}
+.col-company {
+  width: 180px;
+}
+.col-ad-platform {
+  width: 140px;
+}
+.col-status {
+  width: 140px;
+}
+.col-reason {
+  width: 240px;
+}
+.col-call-done {
+  width: 140px;
+}
+.col-comment {
+  width: 320px;
+}
+.col-followup {
+  width: 180px;
+}
+.col-converted {
+  width: 130px;
+}
+.col-actions {
+  width: 110px;
+}
+
+.lead-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lead-badge.neutral {
+  color: var(--text-muted);
+  background: rgba(20, 30, 60, 0.04);
+}
+
+.lead-badge.created {
+  color: rgba(52, 152, 219, 0.95);
+  border-color: rgba(52, 152, 219, 0.55);
+  background: rgba(52, 152, 219, 0.10);
+}
+
+.lead-badge.pending {
+  color: rgba(241, 196, 15, 0.95);
+  border-color: rgba(241, 196, 15, 0.60);
+  background: rgba(241, 196, 15, 0.12);
+}
+
+.lead-badge.qualified {
+  color: rgba(46, 204, 113, 0.95);
+  border-color: rgba(46, 204, 113, 0.55);
+  background: rgba(46, 204, 113, 0.10);
+}
+
+.lead-badge.not-qualified {
+  color: rgba(230, 126, 34, 0.95);
+  border-color: rgba(230, 126, 34, 0.60);
+  background: rgba(230, 126, 34, 0.12);
+}
+
+.lead-badge.invalid-lead {
+  color: var(--danger);
+  border-color: rgba(231, 76, 60, 0.55);
+  background: rgba(231, 76, 60, 0.10);
+}
+
+.leads-reason {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.leads-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 20, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 50;
+}
+
+.leads-modal {
+  width: min(720px, 100%);
+  max-height: min(86vh, 820px);
+  overflow: auto;
+  background: var(--panel-bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.leads-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.leads-modal-head h3 {
+  margin: 0;
+}
+
+.leads-modal-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.leads-modal-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.leads-modal-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.leads-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .leads-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .leads-sync {
+    justify-content: flex-start;
+  }
+
+}
+
+@media (max-width: 640px) {
+  .leads-page {
+    padding: 0.75rem;
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  }
+
+  .leads-title {
+    font-size: 1.35rem;
+  }
+}
+

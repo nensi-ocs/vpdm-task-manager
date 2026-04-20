@@ -9,6 +9,7 @@ import { PipelineClientsModule } from "./pipeline-clients/pipeline-clients.modul
 import { PrismaModule } from "./prisma/prisma.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { ExportModule } from "./export/export.module";
+import { LeadsModule } from "./leads/leads.module";
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ExportModule } from "./export/export.module";
     HealthModule,
     TasksModule,
     ExportModule,
+    LeadsModule,
   ],
 })
 export class AppModule {}

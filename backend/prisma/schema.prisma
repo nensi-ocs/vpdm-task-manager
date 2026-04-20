@@ -18,6 +18,7 @@ model User {
   categories   Category[]
   followupClients FollowupClient[]
   pipelineClients PipelineClient[]
+  leadSources LeadSource[]
 
   @@map("users")
 }
@@ -156,4 +157,66 @@ model TaskCompletion {
   @@index([date], map: "idx_task_completions_date")
   @@index([taskId], map: "idx_task_completions_task_id")
   @@map("task_completions")
+}
+
+model LeadSource {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Display name in UI (e.g. "Meta Leads - 2026")
+  name String @db.VarChar(200)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  userId String @map("user_id") @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  leads Lead[]
+
+  @@index([userId], map: "idx_lead_sources_user_id")
+  @@unique([userId, name], map: "uq_lead_sources_user_name")
+  @@map("lead_sources")
+}
+
+model Lead {
+  id String @id @default(uuid()) @db.Uuid
+
+  leadSourceId String @map("lead_source_id") @db.Uuid
+  leadSource LeadSource @relation(fields: [leadSourceId], references: [id], onDelete: Cascade)
+
+  /// Stable key used for upsert during sync.
+  rowKey String @map("row_key") @db.VarChar(120)
+
+  /// The original row data as a key/value object: {header -> value}
+  data Json
+
+  /// Best-effort normalized fields for UI/filtering (nullable when missing).
+  leadDate DateTime? @map("lead_date") @db.Date
+  email String? @db.VarChar(200)
+  fullName String? @map("full_name") @db.VarChar(200)
+  phoneNumber String? @map("phone_number") @db.VarChar(60)
+  companyName String? @map("company_name") @db.VarChar(200)
+  platform String? @db.VarChar(60)
+  /// Ad platform / network the lead came from (e.g. Meta, Google, TikTok)
+  adPlatform String? @map("ad_platform") @db.VarChar(60)
+  formName String? @map("form_name") @db.VarChar(200)
+
+  leadStatus String? @map("lead_status") @db.VarChar(120)
+  reason String? @db.VarChar(300)
+  callDone String? @map("call_done") @db.VarChar(120)
+  comment String? @db.Text
+  followUpRequired String? @map("follow_up_required") @db.VarChar(120)
+  converted String? @db.VarChar(120)
+
+  syncedAt DateTime? @map("synced_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([leadSourceId, rowKey], map: "uq_leads_source_row_key")
+  @@index([leadSourceId], map: "idx_leads_source_id")
+  @@index([leadDate], map: "idx_leads_date")
+  @@index([email], map: "idx_leads_email")
+  @@index([phoneNumber], map: "idx_leads_phone")
+  @@index([leadStatus], map: "idx_leads_status")
+  @@map("leads")
 }

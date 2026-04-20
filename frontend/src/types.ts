@@ -59,3 +59,41 @@ export type PipelineClient = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type LeadSource = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Lead = {
+  id: string;
+  leadSourceId: string;
+  rowKey: string;
+  data: unknown;
+  leadDate: string | null;
+  email: string | null;
+  fullName: string | null;
+  phoneNumber: string | null;
+  companyName: string | null;
+  platform: string | null;
+  adPlatform: string | null;
+  formName: string | null;
+  leadStatus: string | null;
+  reason: string | null;
+  callDone: string | null;
+  comment: string | null;
+  followUpRequired: string | null;
+  converted: string | null;
+  syncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LeadListResponse = {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: Lead[];
+};
