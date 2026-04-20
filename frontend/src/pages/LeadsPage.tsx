@@ -6,6 +6,7 @@ import { toastApiError, toastSuccess } from "../toast";
 import { apiGet, apiSendJson } from "../api";
 import type { FollowupClient, PipelineClient, PipelineStage } from "../types";
 import { VPDM_TRACKS } from "../vpdmCatalog";
+import { PencilLine } from "lucide-react";
 import "./leads-page.css";
 
 function fmtYmd(iso: string | null): string {
@@ -483,8 +484,10 @@ export function LeadsPage() {
                           className="btn ghost sm"
                           onClick={() => openEdit(r)}
                           disabled={importing || loadingLeads}
+                          aria-label="Edit lead"
+                          title="Edit"
                         >
-                          Edit
+                          <PencilLine size={16} aria-hidden="true" />
                         </button>
                       </td>
                     </tr>
