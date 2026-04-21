@@ -15,6 +15,7 @@ export function useLeads(userId: string | undefined) {
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
+  const [converted, setConverted] = useState("");
   const [adPlatform, setAdPlatform] = useState("");
   const [adPlatformOptions, setAdPlatformOptions] = useState<string[]>([]);
   const [page, setPage] = useState(1);
@@ -59,6 +60,7 @@ export function useLeads(userId: string | undefined) {
       nextPage: number,
       nextQ: string,
       nextStatus: string,
+      nextConverted: string,
       nextAdPlatform: string
     ) => {
       setErrorLeads(null);
@@ -70,6 +72,7 @@ export function useLeads(userId: string | undefined) {
         params.set("pageSize", String(pageSize));
         if (nextQ.trim()) params.set("q", nextQ.trim());
         if (nextStatus.trim()) params.set("status", nextStatus.trim());
+        if (nextConverted.trim()) params.set("converted", nextConverted.trim());
         if (nextAdPlatform.trim()) params.set("adPlatform", nextAdPlatform.trim());
 
         const res = await apiGet<LeadListResponse>(`/leads?${params.toString()}`);
@@ -126,8 +129,8 @@ export function useLeads(userId: string | undefined) {
 
   useEffect(() => {
     if (!userId) return;
-    void reloadLeads(selectedSourceId, page, q, status, adPlatform);
-  }, [userId, selectedSourceId, page, q, status, adPlatform, reloadLeads]);
+    void reloadLeads(selectedSourceId, page, q, status, converted, adPlatform);
+  }, [userId, selectedSourceId, page, q, status, converted, adPlatform, reloadLeads]);
 
   const selectedSource = useMemo(
     () => sources.find((s) => s.id === selectedSourceId) ?? null,
@@ -141,8 +144,8 @@ export function useLeads(userId: string | undefined) {
     const nextSourceId = await reloadSources();
     // Refresh table immediately after import (page 1).
     setPage(1);
-    await reloadLeads(nextSourceId, 1, q, status, adPlatform);
-  }, [adPlatform, q, reloadLeads, reloadSources, status]);
+    await reloadLeads(nextSourceId, 1, q, status, converted, adPlatform);
+  }, [adPlatform, converted, q, reloadLeads, reloadSources, status]);
 
   const updateLead = useCallback(
     async (
@@ -157,18 +160,18 @@ export function useLeads(userId: string | undefined) {
       }
     ) => {
       await apiSendJson(`/leads/${encodeURIComponent(id)}`, "PATCH", patch);
-      await reloadLeads(selectedSourceId, page, q, status, adPlatform);
+      await reloadLeads(selectedSourceId, page, q, status, converted, adPlatform);
     },
-    [adPlatform, page, q, reloadLeads, selectedSourceId, status]
+    [adPlatform, converted, page, q, reloadLeads, selectedSourceId, status]
   );
 
   const deleteLead = useCallback(
     async (id: string) => {
       await apiDelete(`/leads/${encodeURIComponent(id)}`);
       await reloadAdPlatforms(selectedSourceId);
-      await reloadLeads(selectedSourceId, page, q, status, adPlatform);
+      await reloadLeads(selectedSourceId, page, q, status, converted, adPlatform);
     },
-    [adPlatform, page, q, reloadAdPlatforms, reloadLeads, selectedSourceId, status]
+    [adPlatform, converted, page, q, reloadAdPlatforms, reloadLeads, selectedSourceId, status]
   );
 
   return {
@@ -191,6 +194,11 @@ export function useLeads(userId: string | undefined) {
     status,
     setStatus: (v: string) => {
       setStatus(v);
+      setPage(1);
+    },
+    converted,
+    setConverted: (v: string) => {
+      setConverted(v);
       setPage(1);
     },
     adPlatform,

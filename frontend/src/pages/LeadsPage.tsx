@@ -112,6 +112,8 @@ export function LeadsPage() {
     setQ,
     status,
     setStatus,
+    converted: leadConvertedFilter,
+    setConverted: setLeadConvertedFilter,
     adPlatform,
     setAdPlatform,
     adPlatformOptions,
@@ -358,68 +360,86 @@ export function LeadsPage() {
 
       <section className="panel">
         <div className="leads-toolbar">
-          <label className="leads-field">
-            <span className="leads-field-label">Source</span>
-            <select
-              className="input"
-              value={selectedSourceId ?? ""}
-              onChange={(e) => setSelectedSourceId(e.target.value || null)}
-              disabled={loadingSources}
-            >
-              <option value="">All</option>
-              {sources.length === 0 ? <option value="" disabled>No sources yet</option> : null}
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="leads-toolbar-filters">
+            <label className="leads-field">
+              <span className="leads-field-label">Source</span>
+              <select
+                className="input"
+                value={selectedSourceId ?? ""}
+                onChange={(e) => setSelectedSourceId(e.target.value || null)}
+                disabled={loadingSources}
+              >
+                <option value="">All</option>
+                {sources.length === 0 ? <option value="" disabled>No sources yet</option> : null}
+                {sources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="leads-field">
-            <span className="leads-field-label">Search</span>
-            <input
-              className="input"
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Name, email, phone, company…"
-              spellCheck={false}
-              maxLength={200}
-            />
-          </label>
+            <label className="leads-field">
+              <span className="leads-field-label">Lead status</span>
+              <select
+                className="input"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All</option>
+                {LEAD_STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="leads-field">
-            <span className="leads-field-label">Lead status</span>
-            <select
-              className="input"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="">All</option>
-              {LEAD_STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="leads-field">
+              <span className="leads-field-label">Converted</span>
+              <select
+                className="input"
+                value={leadConvertedFilter}
+                onChange={(e) => setLeadConvertedFilter(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="__unset__">Not set</option>
+              </select>
+            </label>
 
-          <label className="leads-field">
-            <span className="leads-field-label">Ad platform</span>
-            <select
-              className="input"
-              value={adPlatform}
-              onChange={(e) => setAdPlatform(e.target.value)}
-            >
-              <option value="">All</option>
-              {adPlatformOptions.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="leads-field">
+              <span className="leads-field-label">Ad platform</span>
+              <select
+                className="input"
+                value={adPlatform}
+                onChange={(e) => setAdPlatform(e.target.value)}
+              >
+                <option value="">All</option>
+                {adPlatformOptions.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="leads-toolbar-search">
+            <label className="leads-field leads-field-grow">
+              <span className="leads-field-label">Search</span>
+              <input
+                className="input"
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Comma-separated: name, email, phone, company…"
+                spellCheck={false}
+                maxLength={200}
+              />
+            </label>
+          </div>
         </div>
 
         {errorLeads ? <p className="leads-error">{errorLeads}</p> : null}

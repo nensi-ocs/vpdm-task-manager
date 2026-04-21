@@ -46,6 +46,7 @@ export class LeadsController {
     @Query("q") q: string | undefined,
     @Query("status") status: string | undefined,
     @Query("adPlatform") adPlatform: string | undefined,
+    @Query("converted") converted: string | undefined,
     @Query("page") pageRaw: string | undefined,
     @Query("pageSize") pageSizeRaw: string | undefined
   ) {
@@ -60,6 +61,7 @@ export class LeadsController {
       q,
       status,
       adPlatform,
+      converted,
       page,
       pageSize,
     });

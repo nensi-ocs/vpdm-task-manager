@@ -287,6 +287,7 @@ export class LeadsService {
       q?: string;
       status?: string;
       adPlatform?: string;
+      converted?: string;
       page: number;
       pageSize: number;
     }
@@ -305,15 +306,52 @@ export class LeadsService {
       ];
     }
 
-    const q = (opts.q ?? "").trim();
-    if (q) {
-      where.OR = [
-        ...(where.OR ?? []),
-        { email: { contains: q, mode: "insensitive" } },
-        { fullName: { contains: q, mode: "insensitive" } },
-        { phoneNumber: { contains: q, mode: "insensitive" } },
-        { companyName: { contains: q, mode: "insensitive" } },
+    const conv = (opts.converted ?? "").trim();
+    if (conv === "__unset__") {
+      where.AND = [
+        ...(where.AND ?? []),
+        { OR: [{ converted: null }, { converted: "" }] },
       ];
+    } else if (conv === "Yes") {
+      where.AND = [
+        ...(where.AND ?? []),
+        {
+          OR: [
+            { converted: { equals: "yes", mode: "insensitive" } },
+            { converted: { equals: "y", mode: "insensitive" } },
+            { converted: { equals: "true", mode: "insensitive" } },
+          ],
+        },
+      ];
+    } else if (conv === "No") {
+      where.AND = [
+        ...(where.AND ?? []),
+        {
+          OR: [
+            { converted: { equals: "no", mode: "insensitive" } },
+            { converted: { equals: "n", mode: "insensitive" } },
+            { converted: { equals: "false", mode: "insensitive" } },
+          ],
+        },
+      ];
+    } else if (conv) {
+      where.converted = { equals: conv, mode: "insensitive" };
+    }
+
+    const searchTokens = (opts.q ?? "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0)
+      .map((t) => t.slice(0, 200))
+      .slice(0, 25);
+    if (searchTokens.length > 0) {
+      const searchOr = searchTokens.flatMap((token) => [
+        { email: { contains: token, mode: "insensitive" } },
+        { fullName: { contains: token, mode: "insensitive" } },
+        { phoneNumber: { contains: token, mode: "insensitive" } },
+        { companyName: { contains: token, mode: "insensitive" } },
+      ]);
+      where.OR = [...(where.OR ?? []), ...searchOr];
     }
 
     const skip = (opts.page - 1) * opts.pageSize;
