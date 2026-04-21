@@ -12,15 +12,29 @@ export function CategoriesPage() {
     useCategories(user?.id);
   const pageSize = 10;
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
 
-  const totalItems = categories.length;
+  const qTokens = q
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 0)
+    .slice(0, 25);
+  const filtered =
+    qTokens.length === 0
+      ? categories
+      : categories.filter((c) => {
+          const name = c.name.toLowerCase();
+          return qTokens.some((t) => name.includes(t));
+        });
+
+  const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startIdx = (page - 1) * pageSize;
-  const pageCategories = categories.slice(startIdx, startIdx + pageSize);
+  const pageCategories = filtered.slice(startIdx, startIdx + pageSize);
 
   useEffect(() => {
     setPage(1);
-  }, [categories.length]);
+  }, [categories.length, qTokens.length]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -92,11 +106,23 @@ export function CategoriesPage() {
       </section>
 
       <section className="panel">
-        <h3 className="saved-title">Saved Categories</h3>
+        <div className="categories-table-top">
+          <h3 className="saved-title">Saved Categories</h3>
+          <label className="categories-search">
+            <span className="categories-search-label">Search</span>
+            <input
+              className="input"
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search category…"
+              maxLength={120}
+              spellCheck={false}
+            />
+          </label>
+        </div>
         {loading ? (
           <p>Loading...</p>
-        ) : categories.length === 0 ? (
-          <p className="saved-empty">No categories yet.</p>
         ) : (
           <div className="categories-table-wrap">
             <table className="categories-table">
@@ -108,87 +134,95 @@ export function CategoriesPage() {
                 </tr>
               </thead>
               <tbody>
-                {pageCategories.map((c, idx) => {
-                  const isEditing = editingId === c.id;
-                  return (
-                    <tr key={c.id}>
-                      <td className="col-num">{startIdx + idx + 1}</td>
-                      <td className="col-category">
-                        {isEditing ? (
-                          <input
-                            className="input category-edit-input"
-                            value={editingName}
-                            onChange={(e) => setEditingName(e.target.value)}
-                            maxLength={120}
-                          />
-                        ) : (
-                          c.name
-                        )}
-                      </td>
-                      <td className="col-actions">
-                        {isEditing ? (
-                          <div className="row-actions">
-                            <button
-                              type="button"
-                              className="btn primary sm"
-                              onClick={() => void onSaveEdit()}
-                              disabled={saving}
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              className="btn ghost sm"
-                              onClick={() => {
-                                setEditingId(null);
-                                setEditingName("");
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="row-actions">
-                            <button
-                              type="button"
-                              className="btn ghost sm table-icon-btn"
-                              title="Edit category"
-                              onClick={() => {
-                                setEditingId(c.id);
-                                setEditingName(c.name);
-                              }}
-                            >
-                              <PencilLine size={16} aria-hidden="true" />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn ghost sm table-icon-btn"
-                              title="Delete category"
-                              onClick={async () => {
-                                try {
-                                  await removeCategory(c.id);
-                                  toastSuccess("Category deleted");
-                                } catch (err) {
-                                  toastApiError(err, "Failed to delete category");
-                                }
-                              }}
-                            >
-                              <Trash2 size={16} aria-hidden="true" />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {pageCategories.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="categories-empty-cell">
+                      {qTokens.length > 0 ? "No results found." : "No categories yet."}
+                    </td>
+                  </tr>
+                ) : (
+                  pageCategories.map((c, idx) => {
+                    const isEditing = editingId === c.id;
+                    return (
+                      <tr key={c.id}>
+                        <td className="col-num">{startIdx + idx + 1}</td>
+                        <td className="col-category">
+                          {isEditing ? (
+                            <input
+                              className="input category-edit-input"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              maxLength={120}
+                            />
+                          ) : (
+                            c.name
+                          )}
+                        </td>
+                        <td className="col-actions">
+                          {isEditing ? (
+                            <div className="row-actions">
+                              <button
+                                type="button"
+                                className="btn primary sm"
+                                onClick={() => void onSaveEdit()}
+                                disabled={saving}
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                className="btn ghost sm"
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setEditingName("");
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="row-actions">
+                              <button
+                                type="button"
+                                className="btn ghost sm table-icon-btn"
+                                title="Edit category"
+                                onClick={() => {
+                                  setEditingId(c.id);
+                                  setEditingName(c.name);
+                                }}
+                              >
+                                <PencilLine size={16} aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn ghost sm table-icon-btn"
+                                title="Delete category"
+                                onClick={async () => {
+                                  try {
+                                    await removeCategory(c.id);
+                                    toastSuccess("Category deleted");
+                                  } catch (err) {
+                                    toastApiError(err, "Failed to delete category");
+                                  }
+                                }}
+                              >
+                                <Trash2 size={16} aria-hidden="true" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         )}
 
-        {categories.length > pageSize ? (
+        {totalItems > pageSize ? (
           <Pagination
-            totalItems={categories.length}
+            totalItems={totalItems}
             pageSize={pageSize}
             currentPage={page}
             onPageChange={setPage}

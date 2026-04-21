@@ -217,44 +217,51 @@ export function PipelineClientsPage() {
     };
   }, [wonFollowupOpen, wonFollowupClientName, wonFollowupTrack]);
 
-  const queryLower = useMemo(() => query.trim().toLowerCase(), [query]);
+  const queryTokens = useMemo(
+    () =>
+      query
+        .split(",")
+        .map((t) => t.trim().toLowerCase())
+        .filter((t) => t.length > 0)
+        .slice(0, 25),
+    [query]
+  );
 
   const filteredGrouped = useMemo(() => {
-    if (!queryLower) return grouped;
+    if (queryTokens.length === 0) return grouped;
     const map = new Map<string, PipelineClient[]>();
     for (const s of stages) {
       const list = (grouped.get(s.key) ?? []).filter((c) => {
         const name = c.clientName.toLowerCase();
         const src = (c.source ?? "").toLowerCase();
         const reason = (c.lostReason ?? "").toLowerCase();
-        return (
-          name.includes(queryLower) ||
-          src.includes(queryLower) ||
-          reason.includes(queryLower)
+        return queryTokens.some(
+          (t) => name.includes(t) || src.includes(t) || reason.includes(t)
         );
       });
       map.set(s.key, list);
     }
     return map;
-  }, [grouped, queryLower, stages]);
+  }, [grouped, queryTokens, stages]);
 
   const filteredClientsFlat = useMemo(() => {
     const list = clients.filter((c) => {
-      if (!queryLower) return true;
+      if (queryTokens.length === 0) return true;
       const name = c.clientName.toLowerCase();
       const src = (c.source ?? "").toLowerCase();
       const reason = (c.lostReason ?? "").toLowerCase();
       const stageLabel = (c.stageLabel ?? "").toLowerCase();
-      return (
-        name.includes(queryLower) ||
-        src.includes(queryLower) ||
-        reason.includes(queryLower) ||
-        stageLabel.includes(queryLower)
+      return queryTokens.some(
+        (t) =>
+          name.includes(t) ||
+          src.includes(t) ||
+          reason.includes(t) ||
+          stageLabel.includes(t)
       );
     });
     list.sort(compareClientsByStepThenName);
     return list;
-  }, [clients, queryLower]);
+  }, [clients, queryTokens]);
 
   const clientTableTotalPages = Math.max(
     1,
@@ -270,11 +277,11 @@ export function PipelineClientsPage() {
   useEffect(() => {
     // Reset board pagination when filters change.
     setBoardPageByStage({});
-  }, [queryLower]);
+  }, [queryTokens]);
 
   useEffect(() => {
     setClientTablePage(1);
-  }, [queryLower]);
+  }, [queryTokens]);
 
   const total = useMemo(() => {
     let n = 0;

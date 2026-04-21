@@ -102,14 +102,18 @@ export function ImportantClientLeadsPage() {
   }, []);
 
   const filteredAndSorted = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const tokens = q
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 0)
+      .slice(0, 25);
     const filtered =
-      needle === ""
+      tokens.length === 0
         ? items
         : items.filter((x) => {
             const hay =
               `${x.name} ${x.brandName} ${x.categories} ${x.platform} ${x.location} ${x.monthSale} ${x.mobileNo} ${x.email} ${x.comment}`.toLowerCase();
-            return hay.includes(needle);
+            return tokens.some((t) => hay.includes(t));
           });
 
     const effectiveKey: SortKey = sortKey ?? "createdAt";

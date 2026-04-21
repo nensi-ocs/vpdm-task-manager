@@ -39,8 +39,36 @@
   font-weight: 800;
 }
 
+.categories-table-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 0.55rem;
+}
+
+.categories-search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 220px;
+}
+
+.categories-search-label {
+  font-weight: 700;
+}
+
 .saved-empty {
   color: var(--text-muted);
+}
+
+.categories-empty-cell {
+  padding: 1rem !important;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 /* Match pipeline client table strip: flex + no vertical gutter + themed scrollbar */
