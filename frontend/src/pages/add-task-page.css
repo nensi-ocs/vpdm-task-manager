@@ -1,14 +1,18 @@
 .add-task-page {
+  display: grid;
+  gap: 16px;
   padding: 1rem 1.1rem 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
 }
 
 .add-task-panel {
-  max-width: 980px;
-  margin: 0 auto;
   width: 100%;
+  min-width: 0;
 }
 
 .add-task-form-panel {
@@ -40,6 +44,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem;
+}
+
+.add-task-row .field {
+  min-width: 0;
 }
 
 .add-task-actions {
@@ -93,6 +101,10 @@
   max-width: 22rem;
 }
 
+.add-task-search .add-task-list-filter-label {
+  white-space: nowrap;
+}
+
 .add-task-search-input {
   width: 100%;
 }
@@ -129,13 +141,28 @@
 
 .add-task-table-wrap {
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .add-task-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 900px;
   border-collapse: collapse;
   background: #fff;
+  table-layout: fixed;
+}
+
+@media (min-width: 1200px) {
+  .add-task-table-wrap {
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+
+  .add-task-table {
+    min-width: 0;
+  }
 }
 
 .add-task-table th,
@@ -144,6 +171,7 @@
   padding: 0.5rem 0.55rem;
   font-size: 0.88rem;
   text-align: left;
+  vertical-align: top;
 }
 
 .add-task-table th {
@@ -151,9 +179,47 @@
   font-weight: 700;
 }
 
+.add-task-table td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+/* Responsive column sizing (keeps everything in one view) */
+.add-task-table th:nth-child(1),
+.add-task-table td:nth-child(1) {
+  width: 6%;
+}
+.add-task-table th:nth-child(2),
+.add-task-table td:nth-child(2) {
+  width: 26%;
+}
+.add-task-table th:nth-child(3),
+.add-task-table td:nth-child(3) {
+  width: 14%;
+}
+.add-task-table th:nth-child(4),
+.add-task-table td:nth-child(4) {
+  width: 14%;
+}
+.add-task-table th:nth-child(5),
+.add-task-table td:nth-child(5) {
+  width: 22%;
+}
+.add-task-table th:nth-child(6),
+.add-task-table td:nth-child(6) {
+  width: 10%;
+}
+.add-task-table th:nth-child(7),
+.add-task-table td:nth-child(7) {
+  width: 8%;
+}
+
 @media (max-width: 720px) {
   .add-task-page {
     padding: 0.8rem;
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   }
 
   .add-task-title {
@@ -169,8 +235,21 @@
     align-items: stretch;
   }
 
-  .add-task-table {
-    min-width: 600px;
+  .add-task-list-controls {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .add-task-search {
+    max-width: none;
+  }
+
+  .add-task-filter-select {
+    min-width: 100%;
+  }
+
+  .add-task-table-freq {
+    max-width: none;
   }
 }
 

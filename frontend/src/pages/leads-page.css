@@ -187,8 +187,10 @@
   flex-direction: column;
   max-width: 100%;
   min-width: 0;
-  overflow-x: visible;
-  overflow-y: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
@@ -218,7 +220,18 @@
   border-collapse: collapse;
   table-layout: fixed;
   background: #fff;
-  min-width: 0;
+  min-width: 1100px;
+}
+
+@media (min-width: 1200px) {
+  .leads-table-wrap {
+    overflow-x: visible;
+    overflow-y: visible;
+  }
+
+  .leads-table {
+    min-width: 0;
+  }
 }
 
 .leads-table th,
