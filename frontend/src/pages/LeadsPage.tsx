@@ -79,7 +79,6 @@ export function LeadsPage() {
   const [editComment, setEditComment] = useState("");
   const [editFollowUpRequired, setEditFollowUpRequired] = useState("");
   const [editConverted, setEditConverted] = useState("");
-  const [editPrevConverted, setEditPrevConverted] = useState("No");
 
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [pipelineBusy, setPipelineBusy] = useState(false);
@@ -154,9 +153,7 @@ export function LeadsPage() {
     setEditCallDone((r.callDone ?? "").trim());
     setEditComment((r.comment ?? "").trim());
     setEditFollowUpRequired((r.followUpRequired ?? "").trim());
-    const prevConv = normalizeConvertedForSelect(r.converted ?? "");
-    setEditPrevConverted(prevConv);
-    setEditConverted(prevConv);
+    setEditConverted(normalizeConvertedForSelect(r.converted ?? ""));
     setEditOpen(true);
   }
 
@@ -172,7 +169,6 @@ export function LeadsPage() {
     setEditComment("");
     setEditFollowUpRequired("");
     setEditConverted("");
-    setEditPrevConverted("No");
   }
 
   function closePipelineModal() {
@@ -574,6 +570,7 @@ export function LeadsPage() {
                 setEditBusy(true);
                 setLocalError(null);
                 try {
+                  const clientNameForPipeline = (editName || editCompany || "").trim();
                   await updateLead(editId, {
                     leadStatus: (editLeadStatus.trim() || "CREATED").toUpperCase(),
                     reason: editReason.trim() || null,
@@ -583,11 +580,13 @@ export function LeadsPage() {
                     converted: editConverted.trim() || null,
                   });
                   toastSuccess("Lead updated");
-                  const becameConverted =
-                    editPrevConverted !== "Yes" && normalizeConvertedForSelect(editConverted) === "Yes";
+                  const convertedIsYes =
+                    normalizeConvertedForSelect(editConverted) === "Yes";
                   closeEdit();
-                  if (becameConverted) {
-                    await openPipelineModal();
+                  if (convertedIsYes) {
+                    await openPipelineModal(
+                      clientNameForPipeline ? clientNameForPipeline : undefined
+                    );
                   }
                 } catch (err) {
                   setLocalError(err instanceof Error ? err.message : "Failed to update lead");
