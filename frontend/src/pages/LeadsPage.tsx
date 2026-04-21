@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useLeads } from "../useLeads";
 import { Pagination } from "../components/Pagination";
@@ -128,6 +128,109 @@ export function LeadsPage() {
     updateLead,
     deleteLead,
   } = useLeads(user?.id);
+
+  type SortKey =
+    | "leadDate"
+    | "fullName"
+    | "email"
+    | "phoneNumber"
+    | "companyName"
+    | "adPlatform"
+    | "leadStatus"
+    | "reason"
+    | "callDone"
+    | "comment"
+    | "followUpRequired"
+    | "converted";
+  type SortDir = "asc" | "desc";
+
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  function cmpText(a: string, b: string): number {
+    return a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+  }
+
+  function sortLabel(k: SortKey): string {
+    if (k === "leadDate") return "Date";
+    if (k === "fullName") return "Name";
+    if (k === "email") return "Email";
+    if (k === "phoneNumber") return "Phone";
+    if (k === "companyName") return "Company";
+    if (k === "adPlatform") return "Ad Platform";
+    if (k === "leadStatus") return "Status";
+    if (k === "reason") return "Reason";
+    if (k === "callDone") return "Call Done";
+    if (k === "comment") return "Comment";
+    if (k === "followUpRequired") return "Follow up Required";
+    return "Converted";
+  }
+
+  function toggleSort(nextKey: SortKey) {
+    setSortKey((prevKey) => {
+      if (prevKey !== nextKey) {
+        setSortDir("asc");
+        return nextKey;
+      }
+      if (sortDir === "asc") {
+        setSortDir("desc");
+        return nextKey;
+      }
+      setSortDir("asc");
+      return null;
+    });
+  }
+
+  function sortGlyph(key: SortKey): string {
+    if (sortKey !== key) return "↕";
+    return sortDir === "asc" ? "↑" : "↓";
+  }
+
+  function SortTh({ k }: { k: SortKey }) {
+    const isOn = sortKey === k;
+    return (
+      <button
+        type="button"
+        className={`leads-sort ${isOn ? "on" : ""}`}
+        onClick={() => toggleSort(k)}
+        aria-label={`Sort by ${sortLabel(k)} ${
+          isOn ? (sortDir === "asc" ? "descending" : "remove sort") : "ascending"
+        }`}
+        title={`Sort by ${sortLabel(k)}`}
+      >
+        <span className="leads-sort-text">{sortLabel(k)}</span>
+        <span className="leads-sort-icon" aria-hidden="true">
+          {sortGlyph(k)}
+        </span>
+      </button>
+    );
+  }
+
+  const shownItems = useMemo(() => {
+    const items = leads.items.slice();
+    if (!sortKey) return items;
+
+    const dirMul = sortDir === "asc" ? 1 : -1;
+    const get = (r: (typeof leads.items)[number]): string => {
+      if (sortKey === "adPlatform") return cellText(r.adPlatform ?? r.platform);
+      if (sortKey === "leadDate") return fmtYmd(r.leadDate);
+      const rec = r as unknown as Record<string, unknown>;
+      return cellText(rec[sortKey] as string | null | undefined);
+    };
+
+    items.sort((a, b) => {
+      const av = get(a);
+      const bv = get(b);
+      const aEmpty = av === "-" || av === "";
+      const bEmpty = bv === "-" || bv === "";
+      if (aEmpty && bEmpty) return 0;
+      if (aEmpty) return 1;
+      if (bEmpty) return -1;
+      const c = cmpText(av, bv);
+      return c * dirMul;
+    });
+    return items;
+  }, [leads.items, sortDir, sortKey]);
 
   const start = (page - 1) * pageSize;
   const shownFrom = leads.total === 0 ? 0 : start + 1;
@@ -445,138 +548,165 @@ export function LeadsPage() {
         {errorLeads ? <p className="leads-error">{errorLeads}</p> : null}
 
         {loadingLeads ? <p>Loading...</p> : null}
-        {!loadingLeads && leads.items.length === 0 ? (
-          <p className="leads-empty">
-            {selectedSourceId
-              ? "No leads found for this source."
-              : "Select a source to view leads."}
-          </p>
-        ) : null}
 
-        {leads.items.length > 0 ? (
-          <>
-            <div className="leads-table-top">
-              <div className="leads-table-meta">
-                Showing <strong>{shownFrom}</strong>–<strong>{shownTo}</strong> of{" "}
-                <strong>{leads.total}</strong>
-              </div>
-              <label className="leads-rows">
-                <span className="leads-rows-label">Rows</span>
-                <select
-                  className="input"
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </label>
-            </div>
+        <div className="leads-table-top">
+          <div className="leads-table-meta">
+            Showing <strong>{shownFrom}</strong>–<strong>{shownTo}</strong> of{" "}
+            <strong>{leads.total}</strong>
+          </div>
+          <label className="leads-rows">
+            <span className="leads-rows-label">Rows</span>
+            <select
+              className="input"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </label>
+        </div>
 
-            <div className="leads-table-wrap">
-              <table className="leads-table">
-                <thead>
-                  <tr>
-                    <th className="col-date">Date</th>
-                    <th className="col-name">Name</th>
-                    <th className="col-email">Email</th>
-                    <th className="col-phone">Phone</th>
-                    <th className="col-company">Company</th>
-                    <th className="col-ad-platform">Ad Platform</th>
-                    <th className="col-status">Status</th>
-                    <th className="col-reason">Reason</th>
-                    <th className="col-call-done">Call Done</th>
-                    <th className="col-comment">Comment</th>
-                    <th className="col-followup">Follow up Required</th>
-                    <th className="col-converted">Converted</th>
-                    <th className="col-actions">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leads.items.map((r) => (
-                    <tr key={r.id}>
-                      <td className="mono col-date">{fmtYmd(r.leadDate)}</td>
-                      <td className="col-name" title={cellText(r.fullName)}>
-                        <span className="leads-cell strong">{cellText(r.fullName)}</span>
-                      </td>
-                      <td className="mono col-email" title={cellText(r.email)}>
-                        <span className="leads-cell">{cellText(r.email)}</span>
-                      </td>
-                      <td className="mono col-phone" title={cellText(r.phoneNumber)}>
-                        <span className="leads-cell">{cellText(r.phoneNumber)}</span>
-                      </td>
-                      <td className="col-company" title={cellText(r.companyName)}>
-                        <span className="leads-cell">{cellText(r.companyName)}</span>
-                      </td>
-                      <td className="col-ad-platform" title={cellText(r.adPlatform ?? r.platform)}>
-                        <span className="leads-cell">{cellText(r.adPlatform ?? r.platform)}</span>
-                      </td>
-                      <td className="col-status">
-                        <span
-                          className={`lead-badge ${statusClass(r.leadStatus)}`}
-                          title={cellText(r.leadStatus)}
+        <div className="leads-table-wrap">
+          <table className="leads-table">
+            <thead>
+              <tr>
+                <th className="col-date">
+                  <SortTh k="leadDate" />
+                </th>
+                <th className="col-name">
+                  <SortTh k="fullName" />
+                </th>
+                <th className="col-email">
+                  <SortTh k="email" />
+                </th>
+                <th className="col-phone">
+                  <SortTh k="phoneNumber" />
+                </th>
+                <th className="col-company">
+                  <SortTh k="companyName" />
+                </th>
+                <th className="col-ad-platform">
+                  <SortTh k="adPlatform" />
+                </th>
+                <th className="col-status">
+                  <SortTh k="leadStatus" />
+                </th>
+                <th className="col-reason">
+                  <SortTh k="reason" />
+                </th>
+                <th className="col-call-done">
+                  <SortTh k="callDone" />
+                </th>
+                <th className="col-comment">
+                  <SortTh k="comment" />
+                </th>
+                <th className="col-followup">
+                  <SortTh k="followUpRequired" />
+                </th>
+                <th className="col-converted">
+                  <SortTh k="converted" />
+                </th>
+                <th className="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!selectedSourceId && leads.total === 0 ? (
+                <tr>
+                  <td colSpan={13} className="leads-empty-cell">
+                    No leads yet. Import an XLSX file to get started.
+                  </td>
+                </tr>
+              ) : shownItems.length === 0 ? (
+                <tr>
+                  <td colSpan={13} className="leads-empty-cell">
+                    No results found. Try changing your search/filters.
+                  </td>
+                </tr>
+              ) : (
+                shownItems.map((r) => (
+                  <tr key={r.id}>
+                    <td className="mono col-date">{fmtYmd(r.leadDate)}</td>
+                    <td className="col-name" title={cellText(r.fullName)}>
+                      <span className="leads-cell strong">{cellText(r.fullName)}</span>
+                    </td>
+                    <td className="mono col-email" title={cellText(r.email)}>
+                      <span className="leads-cell">{cellText(r.email)}</span>
+                    </td>
+                    <td className="mono col-phone" title={cellText(r.phoneNumber)}>
+                      <span className="leads-cell">{cellText(r.phoneNumber)}</span>
+                    </td>
+                    <td className="col-company" title={cellText(r.companyName)}>
+                      <span className="leads-cell">{cellText(r.companyName)}</span>
+                    </td>
+                    <td className="col-ad-platform" title={cellText(r.adPlatform ?? r.platform)}>
+                      <span className="leads-cell">{cellText(r.adPlatform ?? r.platform)}</span>
+                    </td>
+                    <td className="col-status">
+                      <span
+                        className={`lead-badge ${statusClass(r.leadStatus)}`}
+                        title={cellText(r.leadStatus)}
+                      >
+                        {cellText(r.leadStatus)}
+                      </span>
+                    </td>
+                    <td className="leads-reason col-reason" title={cellText(r.reason)}>
+                      {cellText(r.reason)}
+                    </td>
+                    <td className="col-call-done" title={cellText(r.callDone)}>
+                      <span className="leads-cell">{cellText(r.callDone)}</span>
+                    </td>
+                    <td className="col-comment" title={cellText(r.comment)}>
+                      <span className="leads-cell">{cellText(r.comment)}</span>
+                    </td>
+                    <td className="col-followup" title={cellText(r.followUpRequired)}>
+                      <span className="leads-cell">{cellText(r.followUpRequired)}</span>
+                    </td>
+                    <td className="col-converted" title={cellText(r.converted)}>
+                      <span className="leads-cell">{cellText(r.converted)}</span>
+                    </td>
+                    <td className="col-actions">
+                      <div className="leads-row-actions">
+                        <button
+                          type="button"
+                          className="btn ghost sm"
+                          onClick={() => openEdit(r)}
+                          disabled={importing || loadingLeads}
+                          aria-label="Edit lead"
+                          title="Edit"
                         >
-                          {cellText(r.leadStatus)}
-                        </span>
-                      </td>
-                      <td className="leads-reason col-reason" title={cellText(r.reason)}>
-                        {cellText(r.reason)}
-                      </td>
-                      <td className="col-call-done" title={cellText(r.callDone)}>
-                        <span className="leads-cell">{cellText(r.callDone)}</span>
-                      </td>
-                      <td className="col-comment" title={cellText(r.comment)}>
-                        <span className="leads-cell">{cellText(r.comment)}</span>
-                      </td>
-                      <td className="col-followup" title={cellText(r.followUpRequired)}>
-                        <span className="leads-cell">{cellText(r.followUpRequired)}</span>
-                      </td>
-                      <td className="col-converted" title={cellText(r.converted)}>
-                        <span className="leads-cell">{cellText(r.converted)}</span>
-                      </td>
-                      <td className="col-actions">
-                        <div className="leads-row-actions">
-                          <button
-                            type="button"
-                            className="btn ghost sm"
-                            onClick={() => openEdit(r)}
-                            disabled={importing || loadingLeads}
-                            aria-label="Edit lead"
-                            title="Edit"
-                          >
-                            <PencilLine size={16} aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn ghost sm danger"
-                            disabled={importing || loadingLeads}
-                            aria-label="Delete lead"
-                            title="Delete"
-                            onClick={() => {
-                              const label = (r.fullName ?? r.companyName ?? "this lead").trim();
-                              openDeleteModal(r.id, label || "this lead");
-                            }}
-                          >
-                            <Trash2 size={16} aria-hidden="true" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          <PencilLine size={16} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn ghost sm danger"
+                          disabled={importing || loadingLeads}
+                          aria-label="Delete lead"
+                          title="Delete"
+                          onClick={() => {
+                            const label = (r.fullName ?? r.companyName ?? "this lead").trim();
+                            openDeleteModal(r.id, label || "this lead");
+                          }}
+                        >
+                          <Trash2 size={16} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-            <Pagination
-              totalItems={leads.total}
-              pageSize={pageSize}
-              currentPage={page}
-              onPageChange={setPage}
-            />
-          </>
-        ) : null}
+        <Pagination
+          totalItems={leads.total}
+          pageSize={pageSize}
+          currentPage={page}
+          onPageChange={setPage}
+        />
       </section>
 
       {editOpen ? (
