@@ -229,6 +229,7 @@ model ImportantClientLead {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name String @db.VarChar(200)
+  companyName String @default("") @map("company_name") @db.VarChar(200)
   brandName String @default("") @map("brand_name") @db.VarChar(200)
   categories String @default("") @db.VarChar(200)
   platform String @default("") @db.VarChar(120)

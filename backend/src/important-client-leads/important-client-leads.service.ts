@@ -14,6 +14,7 @@ function clean(v: unknown, maxLen: number): string {
 function toDto(row: {
   id: string;
   name: string;
+  companyName: string;
   brandName: string;
   categories: string;
   platform: string;
@@ -28,6 +29,7 @@ function toDto(row: {
   return {
     id: row.id,
     name: row.name,
+    companyName: row.companyName,
     brandName: row.brandName,
     categories: row.categories,
     platform: row.platform,
@@ -82,6 +84,7 @@ export class ImportantClientLeadsService {
           id: randomUUID(),
           userId,
           name,
+          companyName: clean(body.companyName ?? body.company_name, 200),
           brandName: clean(body.brandName ?? body.brand_name, 200),
           categories: clean(body.categories, 200),
           platform: clean(body.platform, 120),
@@ -108,6 +111,7 @@ export class ImportantClientLeadsService {
     };
 
     maybeSet("name", body.name, 200);
+    maybeSet("companyName", body.companyName ?? body.company_name, 200);
     maybeSet("brandName", body.brandName ?? body.brand_name, 200);
     maybeSet("categories", body.categories, 200);
     maybeSet("platform", body.platform, 120);

@@ -8,6 +8,7 @@ import "./important-client-leads-page.css";
 type ImportantClientLead = {
   id: string;
   name: string;
+  companyName: string;
   brandName: string;
   categories: string;
   platform: string;
@@ -30,6 +31,7 @@ function normalizePhone(v: string): string {
 
 type SortKey =
   | "name"
+  | "companyName"
   | "brandName"
   | "categories"
   | "platform"
@@ -48,6 +50,7 @@ function cmpText(a: string, b: string): number {
 
 function sortLabel(k: SortKey): string {
   if (k === "name") return "Name";
+  if (k === "companyName") return "Company Name";
   if (k === "brandName") return "Brand Name";
   if (k === "categories") return "Categories";
   if (k === "platform") return "Platform";
@@ -76,6 +79,7 @@ export function ImportantClientLeadsPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [brandName, setBrandName] = useState("");
   const [categories, setCategories] = useState("");
   const [platform, setPlatform] = useState("");
@@ -112,7 +116,7 @@ export function ImportantClientLeadsPage() {
         ? items
         : items.filter((x) => {
             const hay =
-              `${x.name} ${x.brandName} ${x.categories} ${x.platform} ${x.location} ${x.monthSale} ${x.mobileNo} ${x.email} ${x.comment}`.toLowerCase();
+              `${x.name} ${x.companyName} ${x.brandName} ${x.categories} ${x.platform} ${x.location} ${x.monthSale} ${x.mobileNo} ${x.email} ${x.comment}`.toLowerCase();
             return tokens.some((t) => hay.includes(t));
           });
 
@@ -202,6 +206,7 @@ export function ImportantClientLeadsPage() {
 
   function resetForm() {
     setName("");
+    setCompanyName("");
     setBrandName("");
     setCategories("");
     setPlatform("");
@@ -224,6 +229,7 @@ export function ImportantClientLeadsPage() {
     setError(null);
     setEditId(row.id);
     setName(row.name ?? "");
+    setCompanyName(row.companyName ?? "");
     setBrandName(row.brandName ?? "");
     setCategories(row.categories ?? "");
     setPlatform(row.platform ?? "");
@@ -323,6 +329,9 @@ export function ImportantClientLeadsPage() {
                     <th className="col-name">
                       <SortTh k="name" />
                     </th>
+                    <th className="col-company">
+                      <SortTh k="companyName" />
+                    </th>
                     <th className="col-brand">
                       <SortTh k="brandName" />
                     </th>
@@ -353,7 +362,7 @@ export function ImportantClientLeadsPage() {
                 <tbody>
                   {pagedItems.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="icl-empty-cell">
+                      <td colSpan={12} className="icl-empty-cell">
                         {q.trim()
                           ? "No results found. Try changing your search."
                           : "No important client leads yet. Click Add."}
@@ -365,6 +374,9 @@ export function ImportantClientLeadsPage() {
                         <td className="mono col-no">{start + idx + 1}</td>
                         <td className="col-name" title={r.name}>
                           <span className="icl-cell strong">{r.name}</span>
+                        </td>
+                        <td className="col-company" title={r.companyName}>
+                          <span className="icl-cell">{r.companyName || "-"}</span>
                         </td>
                         <td className="col-brand" title={r.brandName}>
                           <span className="icl-cell">{r.brandName || "-"}</span>
@@ -458,6 +470,7 @@ export function ImportantClientLeadsPage() {
                       "PATCH",
                       {
                         name: nameOk,
+                        companyName: companyName.trim(),
                         brandName: brandName.trim(),
                         categories: categories.trim(),
                         platform: platform.trim(),
@@ -476,6 +489,7 @@ export function ImportantClientLeadsPage() {
                       "POST",
                       {
                         name: nameOk,
+                        companyName: companyName.trim(),
                         brandName: brandName.trim(),
                         categories: categories.trim(),
                         platform: platform.trim(),
@@ -523,6 +537,16 @@ export function ImportantClientLeadsPage() {
                   maxLength={200}
                   required
                   autoFocus
+                />
+              </label>
+
+              <label className="icl-field">
+                <span className="icl-label">Company Name</span>
+                <input
+                  className="input"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  maxLength={200}
                 />
               </label>
 
