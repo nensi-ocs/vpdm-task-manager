@@ -187,10 +187,8 @@
   flex-direction: column;
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+  overflow-x: visible;
+  overflow-y: visible;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
@@ -220,13 +218,7 @@
   border-collapse: collapse;
   table-layout: fixed;
   background: #fff;
-  min-width: 720px;
-}
-
-@media (min-width: 900px) {
-  .leads-table {
-    min-width: 820px;
-  }
+  min-width: 0;
 }
 
 .leads-table th,
@@ -264,9 +256,11 @@
 
 .leads-cell {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .leads-cell.strong {
@@ -317,43 +311,43 @@
 }
 
 .col-date {
-  width: 90px;
+  width: 5%;
 }
 .col-name {
-  width: 160px;
+  width: 8%;
 }
 .col-email {
-  width: 240px;
+  width: 16%;
 }
 .col-phone {
-  width: 160px;
+  width: 9%;
 }
 .col-company {
-  width: 180px;
+  width: 10%;
 }
 .col-ad-platform {
-  width: 140px;
+  width: 7%;
 }
 .col-status {
-  width: 140px;
+  width: 6%;
 }
 .col-reason {
-  width: 240px;
+  width: 10%;
 }
 .col-call-done {
-  width: 140px;
+  width: 6%;
 }
 .col-comment {
-  width: 320px;
+  width: 8%;
 }
 .col-followup {
-  width: 180px;
+  width: 8%;
 }
 .col-converted {
-  width: 130px;
+  width: 4%;
 }
 .col-actions {
-  width: 110px;
+  width: 3%;
 }
 
 .leads-row-actions {
