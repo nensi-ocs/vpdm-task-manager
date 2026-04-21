@@ -19,6 +19,7 @@ model User {
   followupClients FollowupClient[]
   pipelineClients PipelineClient[]
   leadSources LeadSource[]
+  importantClientLeads ImportantClientLead[]
 
   @@map("users")
 }
@@ -219,4 +220,30 @@ model Lead {
   @@index([phoneNumber], map: "idx_leads_phone")
   @@index([leadStatus], map: "idx_leads_status")
   @@map("leads")
+}
+
+model ImportantClientLead {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name String @db.VarChar(200)
+  brandName String @default("") @map("brand_name") @db.VarChar(200)
+  categories String @default("") @db.VarChar(200)
+  platform String @default("") @db.VarChar(120)
+  location String @default("") @db.VarChar(120)
+  monthSale String @default("") @map("month_sale") @db.VarChar(120)
+  mobileNo String @default("") @map("mobile_no") @db.VarChar(60)
+  email String @default("") @db.VarChar(200)
+  comment String @default("") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId], map: "idx_important_client_leads_user_id")
+  @@index([name], map: "idx_important_client_leads_name")
+  @@index([email], map: "idx_important_client_leads_email")
+  @@index([mobileNo], map: "idx_important_client_leads_mobile_no")
+  @@map("important_client_leads")
 }

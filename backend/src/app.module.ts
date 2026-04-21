@@ -10,6 +10,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { ExportModule } from "./export/export.module";
 import { LeadsModule } from "./leads/leads.module";
+import { ImportantClientLeadsModule } from "./important-client-leads/important-client-leads.module";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { LeadsModule } from "./leads/leads.module";
     TasksModule,
     ExportModule,
     LeadsModule,
+    ImportantClientLeadsModule,
   ],
 })
 export class AppModule {}

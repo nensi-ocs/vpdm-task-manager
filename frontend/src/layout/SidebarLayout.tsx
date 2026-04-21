@@ -92,6 +92,13 @@ export function SidebarLayout() {
           >
             Leads
           </NavLink>
+          <NavLink
+            to="/important-client-leads"
+            className={({ isActive }) => (isActive ? "on" : "")}
+            onClick={() => setMobileOpen(false)}
+          >
+            Important Client Lead
+          </NavLink>
         </nav>
       </aside>
       {mobileOpen ? (

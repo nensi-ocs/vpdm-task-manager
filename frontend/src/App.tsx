@@ -16,6 +16,7 @@ import { AddTaskPage } from "./pages/AddTaskPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { LeadsPage } from "./pages/LeadsPage";
+import { ImportantClientLeadsPage } from "./pages/ImportantClientLeadsPage";
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
@@ -49,6 +50,10 @@ export default function App() {
             <Route path="followup-clients" element={<FollowupClientsPage />} />
             <Route path="pipeline-clients" element={<PipelineClientsPage />} />
             <Route path="leads" element={<LeadsPage />} />
+            <Route
+              path="important-client-leads"
+              element={<ImportantClientLeadsPage />}
+            />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
