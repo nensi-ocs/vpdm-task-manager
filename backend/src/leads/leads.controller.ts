@@ -2,7 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   Patch,
@@ -81,6 +84,13 @@ export class LeadsController {
     const updated = await this.service.updateForUser(user.userId, id, body);
     if (!updated) throw new NotFoundException("Not found");
     return updated;
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteLead(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    const ok = await this.service.deleteForUser(user.userId, id);
+    if (!ok) throw new NotFoundException("Not found");
   }
 }
 

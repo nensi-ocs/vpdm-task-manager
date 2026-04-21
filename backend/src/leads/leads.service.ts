@@ -413,21 +413,41 @@ export class LeadsService {
         const rowKey = stableRowKey(obj) || `row_${r}`;
         const norm = pickNormalized(obj);
 
-        await this.db.lead.upsert({
+        const existing = await this.db.lead.findUnique({
           where: { leadSourceId_rowKey: { leadSourceId: source.id, rowKey } },
-          create: {
-            leadSourceId: source.id,
-            rowKey,
-            data: obj as Prisma.InputJsonValue,
-            ...norm,
-            syncedAt: now,
-          },
-          update: {
-            data: obj as Prisma.InputJsonValue,
-            ...norm,
-            syncedAt: now,
-          },
+          select: { id: true, leadDate: true },
         });
+
+        if (!existing) {
+          await this.db.lead.create({
+            data: {
+              leadSourceId: source.id,
+              rowKey,
+              data: obj as Prisma.InputJsonValue,
+              ...norm,
+              syncedAt: now,
+            },
+          });
+        } else {
+          // Re-import should NOT overwrite user-managed fields (status/notes/etc) or leadDate.
+          // Only refresh raw data + best-effort identity fields.
+          await this.db.lead.update({
+            where: { id: existing.id },
+            data: {
+              data: obj as Prisma.InputJsonValue,
+              email: norm.email,
+              fullName: norm.fullName,
+              phoneNumber: norm.phoneNumber,
+              companyName: norm.companyName,
+              platform: norm.platform,
+              adPlatform: norm.adPlatform,
+              formName: norm.formName,
+              // Preserve leadDate once set; if it was missing, fill it from the import.
+              leadDate: existing.leadDate ? undefined : norm.leadDate,
+              syncedAt: now,
+            },
+          });
+        }
         leadCount++;
       }
 
@@ -485,6 +505,17 @@ export class LeadsService {
 
     const fresh = await this.db.lead.findUnique({ where: { id } });
     return fresh ? toLeadDto(fresh) : null;
+  }
+
+  async deleteForUser(userId: string, id: string) {
+    try {
+      const res = await this.db.lead.deleteMany({
+        where: { id, leadSource: { userId } },
+      });
+      return res.count > 0;
+    } catch (e) {
+      this.rethrowIfMissingTables(e);
+    }
   }
 
 }

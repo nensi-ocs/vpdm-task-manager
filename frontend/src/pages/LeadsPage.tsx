@@ -6,7 +6,7 @@ import { toastApiError, toastSuccess } from "../toast";
 import { apiGet, apiSendJson } from "../api";
 import type { FollowupClient, PipelineClient, PipelineStage } from "../types";
 import { VPDM_TRACKS } from "../vpdmCatalog";
-import { PencilLine } from "lucide-react";
+import { PencilLine, Trash2 } from "lucide-react";
 import "./leads-page.css";
 
 function fmtYmd(iso: string | null): string {
@@ -55,7 +55,7 @@ function normalizeStatusForSelect(v: string): string {
 
 function normalizeConvertedForSelect(v: string): string {
   const s = v.trim();
-  if (!s) return "Yes";
+  if (!s) return "";
   const upper = s.toUpperCase();
   if (upper === "Y" || upper === "YES" || upper === "TRUE") return "Yes";
   if (upper === "N" || upper === "NO" || upper === "FALSE") return "No";
@@ -92,10 +92,17 @@ export function LeadsPage() {
 
   const [followupOpen, setFollowupOpen] = useState(false);
   const [followupBusy, setFollowupBusy] = useState(false);
+  const [followupReady, setFollowupReady] = useState(false);
   const [followupClientName, setFollowupClientName] = useState("");
   const [followupTrack, setFollowupTrack] = useState<string>(VPDM_TRACKS[0]);
   const [followupOwner, setFollowupOwner] = useState("");
   const [followupIsUpdate, setFollowupIsUpdate] = useState(false);
+  const [followupEntries, setFollowupEntries] = useState<FollowupClient[]>([]);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteLabel, setDeleteLabel] = useState("");
   const {
     sources,
     selectedSourceId,
@@ -118,6 +125,7 @@ export function LeadsPage() {
     errorLeads,
     importXlsx,
     updateLead,
+    deleteLead,
   } = useLeads(user?.id);
 
   const start = (page - 1) * pageSize;
@@ -216,40 +224,70 @@ export function LeadsPage() {
 
   function closeFollowupModal() {
     if (followupBusy) return;
+    setFollowupReady(false);
     setFollowupOpen(false);
     setFollowupBusy(false);
     setFollowupClientName("");
     setFollowupTrack(VPDM_TRACKS[0]);
     setFollowupOwner("");
     setFollowupIsUpdate(false);
+    setFollowupEntries([]);
+  }
+
+  function vpdmTrackOrder(track: string): number {
+    const i = (VPDM_TRACKS as readonly string[]).indexOf(track);
+    return i === -1 ? 999 : i;
   }
 
   async function openFollowupModalForClient(name: string) {
     const clientName = name.trim();
     if (!clientName) return;
+    setFollowupReady(false);
     setFollowupClientName(clientName);
     setFollowupTrack(VPDM_TRACKS[0]);
     setFollowupOwner("");
     setFollowupIsUpdate(false);
+    setFollowupEntries([]);
     setFollowupOpen(true);
     try {
       const list = await apiGet<FollowupClient[]>("/followup-clients");
       const nameLower = clientName.toLowerCase();
-      const existing = list.find(
-        (x) => x.track === VPDM_TRACKS[0] && x.clientName.trim().toLowerCase() === nameLower
-      );
-      if (existing) {
+      const matches = list.filter((x) => x.clientName.trim().toLowerCase() === nameLower);
+      setFollowupEntries(matches);
+
+      if (matches.length > 0) {
+        const onDefault = matches.find((x) => x.track === VPDM_TRACKS[0]) ?? null;
+        const pick =
+          onDefault ??
+          [...matches].sort((a, b) => vpdmTrackOrder(a.track) - vpdmTrackOrder(b.track))[0];
+        setFollowupTrack(pick.track);
+        setFollowupOwner(pick.owner ?? "");
         setFollowupIsUpdate(true);
-        setFollowupOwner(existing.owner ?? "");
       }
     } catch (err) {
       toastApiError(err, "Failed to load follow-up clients");
+    } finally {
+      setFollowupReady(true);
     }
   }
 
   function isConflictAlreadyExists(err: unknown): boolean {
     const msg = err instanceof Error ? err.message : "";
     return msg.toLowerCase().includes("already exists");
+  }
+
+  function openDeleteModal(id: string, label: string) {
+    setLocalError(null);
+    setDeleteId(id);
+    setDeleteLabel(label);
+    setDeleteOpen(true);
+  }
+
+  function closeDeleteModal() {
+    if (deleteBusy) return;
+    setDeleteOpen(false);
+    setDeleteId(null);
+    setDeleteLabel("");
   }
 
   return (
@@ -479,16 +517,31 @@ export function LeadsPage() {
                         <span className="leads-cell">{cellText(r.converted)}</span>
                       </td>
                       <td className="col-actions">
-                        <button
-                          type="button"
-                          className="btn ghost sm"
-                          onClick={() => openEdit(r)}
-                          disabled={importing || loadingLeads}
-                          aria-label="Edit lead"
-                          title="Edit"
-                        >
-                          <PencilLine size={16} aria-hidden="true" />
-                        </button>
+                        <div className="leads-row-actions">
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            onClick={() => openEdit(r)}
+                            disabled={importing || loadingLeads}
+                            aria-label="Edit lead"
+                            title="Edit"
+                          >
+                            <PencilLine size={16} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost sm danger"
+                            disabled={importing || loadingLeads}
+                            aria-label="Delete lead"
+                            title="Delete"
+                            onClick={() => {
+                              const label = (r.fullName ?? r.companyName ?? "this lead").trim();
+                              openDeleteModal(r.id, label || "this lead");
+                            }}
+                          >
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -523,7 +576,7 @@ export function LeadsPage() {
                     callDone: editCallDone.trim() || null,
                     comment: editComment.trim() || null,
                     followUpRequired: editFollowUpRequired.trim() || null,
-                    converted: editConverted.trim() || "Yes",
+                    converted: editConverted.trim() || null,
                   });
                   toastSuccess("Lead updated");
                   const becameConverted =
@@ -633,6 +686,9 @@ export function LeadsPage() {
                 value={editConverted}
                 onChange={(e) => setEditConverted(e.target.value)}
               >
+                <option value="" disabled>
+                  Choose one...
+                </option>
                 {CONVERTED_OPTIONS.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -958,8 +1014,20 @@ export function LeadsPage() {
             </div>
 
             <p className="leads-modal-subtitle">
-              <strong>{followupClientName}</strong> is in <strong>Deal Won</strong>. Add them to a
-              follow-up track.
+              {!followupReady ? (
+                <>Loading follow-up data…</>
+              ) : (
+                <>
+                  <strong>{followupClientName}</strong> is in <strong>Deal Won</strong>.{" "}
+                  {followupIsUpdate ? (
+                    <>
+                      They already have a follow-up entry — update track/owner below, or skip.
+                    </>
+                  ) : (
+                    <>Add them to a follow-up track for daily check-ins, or skip.</>
+                  )}
+                </>
+              )}
             </p>
 
             <label className="leads-modal-field">
@@ -967,7 +1035,27 @@ export function LeadsPage() {
               <select
                 className="input"
                 value={followupTrack}
-                onChange={(e) => setFollowupTrack(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setFollowupTrack(next);
+                  const nameLower = followupClientName.trim().toLowerCase();
+                  const existing =
+                    nameLower
+                      ? followupEntries.find(
+                          (x) =>
+                            x.track === next &&
+                            x.clientName.trim().toLowerCase() === nameLower
+                        ) ?? null
+                      : null;
+                  if (existing) {
+                    setFollowupIsUpdate(true);
+                    setFollowupOwner(existing.owner ?? "");
+                  } else {
+                    setFollowupIsUpdate(false);
+                    setFollowupOwner("");
+                  }
+                }}
+                disabled={!followupReady || followupBusy}
               >
                 {VPDM_TRACKS.map((t) => (
                   <option key={t} value={t}>
@@ -985,6 +1073,7 @@ export function LeadsPage() {
                 onChange={(e) => setFollowupOwner(e.target.value)}
                 maxLength={120}
                 placeholder="e.g. team member name"
+                disabled={!followupReady || followupBusy}
               />
             </label>
 
@@ -997,12 +1086,65 @@ export function LeadsPage() {
               >
                 Skip
               </button>
-              <button type="submit" className="btn primary" disabled={followupBusy}>
+              <button type="submit" className="btn primary" disabled={followupBusy || !followupReady}>
                 {followupBusy
                   ? "Saving…"
                   : followupIsUpdate
                     ? "Update follow-up"
                     : "Add to follow-up"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {deleteOpen ? (
+        <div className="leads-modal-backdrop" role="presentation" onClick={() => closeDeleteModal()}>
+          <form
+            className="leads-modal"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!deleteId) return;
+              void (async () => {
+                setDeleteBusy(true);
+                setLocalError(null);
+                try {
+                  await deleteLead(deleteId);
+                  toastSuccess("Lead deleted");
+                  closeDeleteModal();
+                } catch (err) {
+                  setLocalError(err instanceof Error ? err.message : "Failed to delete lead");
+                  toastApiError(err, "Failed to delete lead");
+                } finally {
+                  setDeleteBusy(false);
+                }
+              })();
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="leads-modal-head">
+              <h3>Delete lead?</h3>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => closeDeleteModal()}
+                aria-label="Close"
+                disabled={deleteBusy}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="leads-modal-subtitle">
+              Delete <strong>{deleteLabel || "this lead"}</strong>? This cannot be undone.
+            </p>
+
+            <div className="leads-modal-actions">
+              <button type="button" className="btn ghost" onClick={() => closeDeleteModal()} disabled={deleteBusy}>
+                Cancel
+              </button>
+              <button type="submit" className="btn danger" disabled={deleteBusy}>
+                {deleteBusy ? "Deleting…" : "Delete"}
               </button>
             </div>
           </form>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiGet, apiSendFormData, apiSendJson } from "./api";
+import { apiDelete, apiGet, apiSendFormData, apiSendJson } from "./api";
 import type { LeadListResponse, LeadSource } from "./types";
 import { toastApiError } from "./toast";
 
@@ -162,6 +162,15 @@ export function useLeads(userId: string | undefined) {
     [adPlatform, page, q, reloadLeads, selectedSourceId, status]
   );
 
+  const deleteLead = useCallback(
+    async (id: string) => {
+      await apiDelete(`/leads/${encodeURIComponent(id)}`);
+      await reloadAdPlatforms(selectedSourceId);
+      await reloadLeads(selectedSourceId, page, q, status, adPlatform);
+    },
+    [adPlatform, page, q, reloadAdPlatforms, reloadLeads, selectedSourceId, status]
+  );
+
   return {
     sources,
     selectedSource,
@@ -205,6 +214,7 @@ export function useLeads(userId: string | undefined) {
     adPlatformOptions,
     importXlsx,
     updateLead,
+    deleteLead,
   };
 }
 

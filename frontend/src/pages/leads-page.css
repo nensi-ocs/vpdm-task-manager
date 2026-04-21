@@ -297,6 +297,12 @@
   width: 110px;
 }
 
+.leads-row-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .lead-badge {
   display: inline-flex;
   align-items: center;
