@@ -187,8 +187,12 @@ export function LeadsPage() {
     setPipelineLostReason("");
   }
 
-  async function openPipelineModal() {
-    const defaultName = editName || editCompany || "";
+  async function openPipelineModal(overrideClientName?: string) {
+    const defaultName =
+      (overrideClientName != null && overrideClientName.trim() !== ""
+        ? overrideClientName
+        : editName || editCompany || ""
+      ).trim();
     setPipelineClientName(defaultName);
     setPipelineSource("ads");
     setPipelineStage("lead_generated");
@@ -1078,6 +1082,19 @@ export function LeadsPage() {
             </label>
 
             <div className="leads-modal-actions">
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  if (followupBusy || !followupReady) return;
+                  const name = followupClientName.trim();
+                  closeFollowupModal();
+                  void openPipelineModal(name || undefined);
+                }}
+                disabled={followupBusy || !followupReady}
+              >
+                Back to Client Pipeline
+              </button>
               <button
                 type="button"
                 className="btn ghost"
