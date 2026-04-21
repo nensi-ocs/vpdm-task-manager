@@ -155,10 +155,8 @@
   flex-direction: column;
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+  overflow-x: visible;
+  overflow-y: visible;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
@@ -186,9 +184,9 @@
   flex: 0 0 auto;
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
   background: #fff;
-  min-width: 980px;
+  min-width: 0;
 }
 
 .icl-table th,
@@ -226,9 +224,11 @@
 
 .icl-cell {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .icl-cell.strong {
@@ -243,34 +243,34 @@
   width: 60px;
 }
 .col-name {
-  width: 160px;
+  width: auto;
 }
 .col-company {
-  width: 180px;
+  width: auto;
 }
 .col-brand {
-  width: 170px;
+  width: auto;
 }
 .col-categories {
-  width: 170px;
+  width: auto;
 }
 .col-platform {
-  width: 140px;
+  width: auto;
 }
 .col-location {
-  width: 140px;
+  width: auto;
 }
 .col-month-sale {
-  width: 140px;
+  width: auto;
 }
 .col-mobile {
-  width: 150px;
+  width: auto;
 }
 .col-email {
-  width: 240px;
+  width: auto;
 }
 .col-comment {
-  width: 320px;
+  width: auto;
 }
 .col-actions {
   width: 110px;
