@@ -285,6 +285,12 @@
 .col-comment {
   width: auto;
 }
+.col-meeting-status {
+  width: auto;
+}
+.col-meeting-comment {
+  width: auto;
+}
 .col-actions {
   width: 110px;
 }
@@ -293,6 +299,43 @@
   display: inline-flex;
   gap: 8px;
   align-items: center;
+}
+
+.icl-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icl-badge.neutral {
+  color: var(--text-muted);
+  background: rgba(20, 30, 60, 0.04);
+}
+
+.icl-badge.pending {
+  color: rgba(241, 196, 15, 0.95);
+  border-color: rgba(241, 196, 15, 0.60);
+  background: rgba(241, 196, 15, 0.12);
+}
+
+.icl-badge.done {
+  color: rgba(46, 204, 113, 0.95);
+  border-color: rgba(46, 204, 113, 0.55);
+  background: rgba(46, 204, 113, 0.10);
+}
+
+.icl-badge.rejected {
+  color: var(--danger);
+  border-color: rgba(231, 76, 60, 0.55);
+  background: rgba(231, 76, 60, 0.10);
 }
 
 .icl-modal-backdrop {

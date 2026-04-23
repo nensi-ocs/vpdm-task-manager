@@ -238,6 +238,8 @@ model ImportantClientLead {
   mobileNo String @default("") @map("mobile_no") @db.VarChar(60)
   email String @default("") @db.VarChar(200)
   comment String @default("") @db.Text
+  meetingStatus String @default("Pending") @map("meeting_status") @db.VarChar(20)
+  meetingComment String @default("") @map("meeting_comment") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

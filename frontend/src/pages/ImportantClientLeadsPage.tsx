@@ -17,6 +17,8 @@ type ImportantClientLead = {
   mobileNo: string;
   email: string;
   comment: string;
+  meetingStatus: string;
+  meetingComment: string;
   createdAt: string;
   updatedAt?: string;
 };
@@ -40,12 +42,23 @@ type SortKey =
   | "mobileNo"
   | "email"
   | "comment"
+  | "meetingStatus"
+  | "meetingComment"
   | "createdAt";
 
 type SortDir = "asc" | "desc";
 
 function cmpText(a: string, b: string): number {
   return a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+}
+
+function meetingStatusClass(status: string | null | undefined): string {
+  const s = (status ?? "").toString().trim().toLowerCase();
+  if (!s || s === "-") return "-";
+  if (s === "pending") return "pending";
+  if (s === "done") return "done";
+  if (s === "rejected") return "rejected";
+  return "neutral";
 }
 
 function sortLabel(k: SortKey): string {
@@ -59,6 +72,8 @@ function sortLabel(k: SortKey): string {
   if (k === "mobileNo") return "Mobile No";
   if (k === "email") return "Email";
   if (k === "comment") return "Comment";
+  if (k === "meetingStatus") return "Meeting Status";
+  if (k === "meetingComment") return "Meeting Comment";
   return "Created";
 }
 
@@ -88,6 +103,13 @@ export function ImportantClientLeadsPage() {
   const [mobileNo, setMobileNo] = useState("");
   const [email, setEmail] = useState("");
   const [comment, setComment] = useState("");
+  const [meetingStatus, setMeetingStatus] = useState("Pending");
+  const [meetingComment, setMeetingComment] = useState("");
+
+  const meetingStatusOptions = useMemo(
+    () => ["Pending", "Done", "Rejected"] as const,
+    []
+  );
 
   useEffect(() => {
     void (async () => {
@@ -116,7 +138,7 @@ export function ImportantClientLeadsPage() {
         ? items
         : items.filter((x) => {
             const hay =
-              `${x.name} ${x.companyName} ${x.brandName} ${x.categories} ${x.platform} ${x.location} ${x.monthSale} ${x.mobileNo} ${x.email} ${x.comment}`.toLowerCase();
+              `${x.name} ${x.companyName} ${x.brandName} ${x.categories} ${x.platform} ${x.location} ${x.monthSale} ${x.mobileNo} ${x.email} ${x.comment} ${x.meetingStatus} ${x.meetingComment}`.toLowerCase();
             return tokens.some((t) => hay.includes(t));
           });
 
@@ -215,6 +237,8 @@ export function ImportantClientLeadsPage() {
     setMobileNo("");
     setEmail("");
     setComment("");
+    setMeetingStatus("Pending");
+    setMeetingComment("");
   }
 
   function closeAdd() {
@@ -238,6 +262,8 @@ export function ImportantClientLeadsPage() {
     setMobileNo(row.mobileNo ?? "");
     setEmail(row.email ?? "");
     setComment(row.comment ?? "");
+    setMeetingStatus(row.meetingStatus || "Pending");
+    setMeetingComment(row.meetingComment ?? "");
     setAddOpen(true);
   }
 
@@ -356,13 +382,19 @@ export function ImportantClientLeadsPage() {
                     <th className="col-comment">
                       <SortTh k="comment" />
                     </th>
+                    <th className="col-meeting-status">
+                      <SortTh k="meetingStatus" />
+                    </th>
+                    <th className="col-meeting-comment">
+                      <SortTh k="meetingComment" />
+                    </th>
                     <th className="col-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagedItems.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="icl-empty-cell">
+                      <td colSpan={14} className="icl-empty-cell">
                         {q.trim()
                           ? "No results found. Try changing your search."
                           : "No important client leads yet. Click Add."}
@@ -401,6 +433,17 @@ export function ImportantClientLeadsPage() {
                         </td>
                         <td className="col-comment" title={r.comment}>
                           <span className="icl-cell">{r.comment || "-"}</span>
+                        </td>
+                        <td className="col-meeting-status" title={r.meetingStatus}>
+                          <span
+                            className={`icl-badge ${meetingStatusClass(r.meetingStatus)}`}
+                            title={r.meetingStatus || "-"}
+                          >
+                            {r.meetingStatus || "-"}
+                          </span>
+                        </td>
+                        <td className="col-meeting-comment" title={r.meetingComment}>
+                          <span className="icl-cell">{r.meetingComment || "-"}</span>
                         </td>
                         <td className="col-actions">
                           <div className="icl-row-actions">
@@ -479,6 +522,8 @@ export function ImportantClientLeadsPage() {
                         mobileNo: phoneNorm,
                         email: emailNorm,
                         comment: comment.trim(),
+                        meetingStatus,
+                        meetingComment: meetingComment.trim(),
                       }
                     );
                     setItems((prev) => prev.map((x) => (x.id === editId ? updated : x)));
@@ -498,6 +543,8 @@ export function ImportantClientLeadsPage() {
                         mobileNo: phoneNorm,
                         email: emailNorm,
                         comment: comment.trim(),
+                        meetingStatus,
+                        meetingComment: meetingComment.trim(),
                       }
                     );
                     setItems((prev) => [created, ...prev]);
@@ -633,6 +680,32 @@ export function ImportantClientLeadsPage() {
                   onChange={(e) => setComment(e.target.value)}
                   maxLength={5000}
                   rows={4}
+                />
+              </label>
+
+              <label className="icl-field">
+                <span className="icl-label">Meeting Status</span>
+                <select
+                  className="input"
+                  value={meetingStatus}
+                  onChange={(e) => setMeetingStatus(e.target.value)}
+                >
+                  {meetingStatusOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="icl-field icl-field-span">
+                <span className="icl-label">Meeting Comment</span>
+                <textarea
+                  className="input"
+                  value={meetingComment}
+                  onChange={(e) => setMeetingComment(e.target.value)}
+                  maxLength={5000}
+                  rows={3}
                 />
               </label>
             </div>

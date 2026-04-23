@@ -11,6 +11,23 @@ function clean(v: unknown, maxLen: number): string {
   return s.slice(0, maxLen);
 }
 
+const MEETING_STATUSES = ["Pending", "Done", "Rejected"] as const;
+type MeetingStatus = (typeof MEETING_STATUSES)[number];
+
+function normalizeMeetingStatus(v: unknown): MeetingStatus {
+  const s = clean(v, 20);
+  if (!s) return "Pending";
+  const lower = s.toLowerCase();
+  const found =
+    MEETING_STATUSES.find((x) => x.toLowerCase() === lower) ?? null;
+  if (!found) {
+    throw new BadRequestException(
+      `meetingStatus must be one of: ${MEETING_STATUSES.join(", ")}`
+    );
+  }
+  return found;
+}
+
 function toDto(row: {
   id: string;
   name: string;
@@ -23,6 +40,8 @@ function toDto(row: {
   mobileNo: string;
   email: string;
   comment: string;
+  meetingStatus: string;
+  meetingComment: string;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -38,6 +57,8 @@ function toDto(row: {
     mobileNo: row.mobileNo,
     email: row.email,
     comment: row.comment,
+    meetingStatus: row.meetingStatus,
+    meetingComment: row.meetingComment,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -93,6 +114,13 @@ export class ImportantClientLeadsService {
           mobileNo: clean(body.mobileNo ?? body.mobile_no, 60),
           email: clean(body.email, 200).toLowerCase(),
           comment: clean(body.comment, 5000),
+          meetingStatus: normalizeMeetingStatus(
+            body.meetingStatus ?? body.meeting_status
+          ),
+          meetingComment: clean(
+            body.meetingComment ?? body.meeting_comment,
+            5000
+          ),
         },
       });
       return toDto(saved);
@@ -120,6 +148,16 @@ export class ImportantClientLeadsService {
     maybeSet("mobileNo", body.mobileNo ?? body.mobile_no, 60);
     maybeSet("email", body.email, 200, true);
     maybeSet("comment", body.comment, 5000);
+    if (body.meetingStatus !== undefined || body.meeting_status !== undefined) {
+      patch.meetingStatus = normalizeMeetingStatus(
+        body.meetingStatus ?? body.meeting_status
+      );
+    }
+    maybeSet(
+      "meetingComment",
+      body.meetingComment ?? body.meeting_comment,
+      5000
+    );
 
     if (Object.keys(patch).length === 0) {
       try {
