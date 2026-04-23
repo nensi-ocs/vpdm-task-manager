@@ -156,11 +156,12 @@
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  max-height: min(70vh, 560px);
 }
 
 .icl-table-wrap::-webkit-scrollbar {
@@ -192,11 +193,6 @@
 }
 
 @media (min-width: 1200px) {
-  .icl-table-wrap {
-    overflow-x: visible;
-    overflow-y: visible;
-  }
-
   .icl-table {
     min-width: 0;
   }
@@ -237,11 +233,9 @@
 
 .icl-cell {
   display: block;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .icl-cell.strong {
