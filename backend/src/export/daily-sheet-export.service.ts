@@ -21,33 +21,34 @@ type TaskSeriesSchedule = TaskSeries & {
 
 const VPDM_TRACKS = [
   "Amazon Client Followup",
-  "Amazon New client Free",
   "Amazon Audit Client",
   "Flipkart Client Followup",
-  "Flipkart New client Free",
   "Flipkart Audit Client",
+  "Meta Client Followup",
+  "Meta Audit Client",
 ] as const;
 
 const EXCEL_ROW2_TRACK_LABELS = [
   "Amazon Client Followup",
-  "Amazon New client Free",
   "Amazon Audit Client ",
   "Flipkart  Client Followup",
-  "Flipkart New client Free",
   "Flipkart Audit Client ",
+  "Meta Client Followup",
+  "Meta Audit Client ",
 ] as const;
 
 const COLOR_VPDM = "CAEDFB";
 const COLOR_ROLE_AND_SELECTED_TRACKS = "FBE2D5";
-const COLOR_AMAZON_NEW_CLIENT = "C1F0C8";
 const COLOR_AMAZON_AUDIT = "F2CEEF";
 const COLOR_FLIPKART_CLIENT_FOLLOWUP = "DAF2D0";
-const COLOR_FLIPKART_NEW_CLIENT = "DAE9F8";
+const COLOR_FLIPKART_AUDIT_CLIENT = "DAE9F8";
+const COLOR_META_CLIENT_FOLLOWUP = "C1F0C8";
+const COLOR_META_AUDIT_CLIENT = "FFF2CC";
 const COLOR_HEADERS = "D0D0D0";
 const COLOR_COMMENTS_AND_CATEGORY = "DAF2D0";
 
 const LAST_COL = 16;
-/** First column of the Amazon/Flipkart tick+name grid (track index 0 = col E). */
+/** First column of the Amazon/Flipkart/Meta tick+name grid (track index 0 = col E). */
 const TICK_COL_FIRST = 5;
 
 /** Print HTML: if a line of text would exceed this many characters, continue on the next line. */
@@ -294,11 +295,11 @@ function applyColumnWidths(ws: ExcelJS.Worksheet): void {
 
 const TRACK_HEADER_HEX: readonly string[] = [
   COLOR_ROLE_AND_SELECTED_TRACKS,
-  COLOR_AMAZON_NEW_CLIENT,
   COLOR_AMAZON_AUDIT,
   COLOR_FLIPKART_CLIENT_FOLLOWUP,
-  COLOR_FLIPKART_NEW_CLIENT,
-  COLOR_ROLE_AND_SELECTED_TRACKS,
+  COLOR_FLIPKART_AUDIT_CLIENT,
+  COLOR_META_CLIENT_FOLLOWUP,
+  COLOR_META_AUDIT_CLIENT,
 ];
 
 function excelColLetter(col: number): string {

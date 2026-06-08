@@ -123,7 +123,7 @@ export function FollowupClientsPage() {
       <section className="panel followup-intro-panel">
         <h2 className="followup-title">Client Followup Details</h2>
         <p className="followup-subtitle">
-          Add clients under Amazon/Flipkart followup tracks. Total clients: {total}
+          Add clients under Amazon, Flipkart & Meta followup tracks. Total clients: {total}
         </p>
         <form onSubmit={(e) => void onSubmit(e)} className="followup-add-form">
           <select className="input" value={track} onChange={(e) => setTrack(e.target.value)}>

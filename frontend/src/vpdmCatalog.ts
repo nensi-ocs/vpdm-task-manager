@@ -4,11 +4,11 @@
 
 export const VPDM_TRACKS = [
   "Amazon Client Followup",
-  "Amazon New client Free",
   "Amazon Audit Client",
   "Flipkart Client Followup",
-  "Flipkart New client Free",
   "Flipkart Audit Client",
+  "Meta Client Followup",
+  "Meta Audit Client",
 ] as const;
 
 export type VpdmTrack = (typeof VPDM_TRACKS)[number];
