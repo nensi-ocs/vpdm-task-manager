@@ -26,6 +26,22 @@ function defaultDayOfMonth(): string {
   return String(new Date().getDate());
 }
 
+const FREQUENCY_GROUP_ORDER: Frequency[] = [
+  "daily",
+  "weekly",
+  "monthly",
+  "interval",
+  "once",
+];
+
+const FREQUENCY_GROUP_LABELS: Record<Frequency, string> = {
+  daily: "Daily Tasks",
+  weekly: "Weekly Tasks",
+  monthly: "Monthly Tasks",
+  interval: "Every X Days Tasks",
+  once: "One-time Tasks",
+};
+
 function formatFrequencyDisplay(task: Task): string {
   switch (task.frequency) {
     case "daily":
@@ -114,9 +130,17 @@ export function AddTaskPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const pageSize = 10;
-  const [page, setPage] = useState(1);
   const [listFilter, setListFilter] = useState<Filter>("all");
   const [taskSearch, setTaskSearch] = useState("");
+  const [groupSearch, setGroupSearch] = useState<
+    Partial<Record<Frequency, string>>
+  >({});
+  const [groupFilter, setGroupFilter] = useState<
+    Partial<Record<Frequency, Filter>>
+  >({});
+  const [groupPages, setGroupPages] = useState<
+    Partial<Record<Frequency, number>>
+  >({});
   const [pendingStopTaskId, setPendingStopTaskId] = useState<number | null>(
     null
   );
@@ -138,6 +162,23 @@ export function AddTaskPage() {
       taskMatchesSearch(t, searchQueryLower)
     );
   }, [statusFilteredTasks, searchQueryLower]);
+
+  // One card per frequency: `all` decides whether the card shows at all,
+  // `matched` applies that card's own search and status filter on top of
+  // the global controls.
+  const groups = useMemo(() => {
+    return FREQUENCY_GROUP_ORDER.map((frequency) => {
+      const all = filteredTasks.filter((t) => t.frequency === frequency);
+      const q = (groupSearch[frequency] ?? "").trim().toLowerCase();
+      const status = groupFilter[frequency] ?? "all";
+      const matched = all.filter(
+        (t) =>
+          taskMatchesListFilter(t, status) &&
+          (!q || taskMatchesSearch(t, q))
+      );
+      return { frequency, all, matched };
+    }).filter((g) => g.all.length > 0);
+  }, [filteredTasks, groupSearch, groupFilter]);
 
   // If DB categories load (or change) and current selection is empty, pick the first DB category.
   // This keeps the dropdown "DB-only" while still allowing smooth creation.
@@ -243,18 +284,9 @@ export function AddTaskPage() {
     setLocalError(null);
   }
 
-  const totalItems = filteredTasks.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const startIdx = (page - 1) * pageSize;
-  const pageTasks = filteredTasks.slice(startIdx, startIdx + pageSize);
-
   useEffect(() => {
-    setPage(1);
+    setGroupPages({});
   }, [tasks.length, listFilter, taskSearch]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
 
   return (
     <main className="add-task-page">
@@ -453,111 +485,192 @@ export function AddTaskPage() {
 
       </section>
 
-      <section className="panel add-task-panel add-task-table-panel">
-        <div className="add-task-list-head">
-          <h3>Task List</h3>
-          {tasks.length > 0 ? (
-            <div className="add-task-list-controls">
-              <label className="add-task-search">
-                <span className="add-task-list-filter-label">Search</span>
-                <input
-                  type="search"
-                  className="input add-task-search-input"
-                  value={taskSearch}
-                  onChange={(e) => setTaskSearch(e.target.value)}
-                  placeholder="Search by task, category, or frequency…"
-                  aria-label="Search tasks by name, category, or frequency"
-                  autoComplete="off"
-                />
-              </label>
-              <label className="add-task-list-filter">
-                <span className="add-task-list-filter-label">Filter</span>
-                <select
-                  className="input add-task-filter-select"
-                  value={listFilter}
-                  onChange={(e) => setListFilter(e.target.value as Filter)}
-                  aria-label="Filter tasks by status"
-                >
-                  <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="done">Stopped</option>
-                </select>
-              </label>
-            </div>
+      <section className="add-task-panel add-task-table-panel">
+        <div className="panel add-task-list-bar">
+          <div className="add-task-list-head">
+            <h3>Task List</h3>
+            {tasks.length > 0 ? (
+              <div className="add-task-list-controls">
+                <label className="add-task-search">
+                  <span className="add-task-list-filter-label">Search</span>
+                  <input
+                    type="search"
+                    className="input add-task-search-input"
+                    value={taskSearch}
+                    onChange={(e) => setTaskSearch(e.target.value)}
+                    placeholder="Search by task, category, or frequency…"
+                    aria-label="Search all tasks by name, category, or frequency"
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="add-task-list-filter">
+                  <span className="add-task-list-filter-label">Filter</span>
+                  <select
+                    className="input add-task-filter-select"
+                    value={listFilter}
+                    onChange={(e) => setListFilter(e.target.value as Filter)}
+                    aria-label="Filter tasks by status"
+                  >
+                    <option value="all">All</option>
+                    <option value="active">Active</option>
+                    <option value="done">Stopped</option>
+                  </select>
+                </label>
+              </div>
+            ) : null}
+          </div>
+          {tasks.length === 0 ? (
+            <p className="add-task-empty">No tasks yet.</p>
+          ) : filteredTasks.length === 0 ? (
+            <p className="add-task-empty">
+              {statusFilteredTasks.length === 0
+                ? 'No tasks match this filter. Try "All" or another option.'
+                : "No tasks match your search. Try different words or clear the search box."}
+            </p>
           ) : null}
         </div>
-        {tasks.length === 0 ? (
-          <p className="add-task-empty">No tasks yet.</p>
-        ) : filteredTasks.length === 0 ? (
-          <p className="add-task-empty">
-            {statusFilteredTasks.length === 0
-              ? 'No tasks match this filter. Try "All" or another option.'
-              : "No tasks match your search. Try different words or clear the search box."}
-          </p>
-        ) : (
-          <div className="add-task-table-wrap">
-            <table className="add-task-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Task</th>
-                  <th>Date</th>
-                  <th>Category</th>
-                  <th>Frequency</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageTasks.map((task, idx) => (
-                  <tr key={task.id}>
-                    <td>{startIdx + idx + 1}</td>
-                    <td>{task.title}</td>
-                    <td>{formatIsoDateDdMmYyyy(task.startDate)}</td>
-                    <td>{task.category ?? "-"}</td>
-                    <td className="add-task-table-freq">
-                      {formatFrequencyDisplay(task)}
-                    </td>
-                    <td>{task.endDate ? "Stopped" : "Active"}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button
-                          type="button"
-                          className="btn ghost sm table-icon-btn"
-                          onClick={() => onEditTask(task)}
-                          disabled={Boolean(task.endDate)}
-                          title={task.endDate ? "Stopped task cannot be edited" : "Edit task"}
-                          aria-label="Edit task"
-                        >
-                          <PencilLine size={15} aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn ghost sm table-icon-btn"
-                          onClick={() => requestStopTask(task.id)}
-                          disabled={Boolean(task.endDate)}
-                          title={task.endDate ? "Task already stopped" : "Stop task"}
-                          aria-label="Stop task"
-                        >
-                          <Trash2 size={15} aria-hidden="true" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
 
-        {filteredTasks.length > pageSize ? (
-          <Pagination
-            totalItems={filteredTasks.length}
-            pageSize={pageSize}
-            currentPage={page}
-            onPageChange={setPage}
-          />
-        ) : null}
+        {filteredTasks.length > 0
+          ? groups.map((group) => {
+              const label = FREQUENCY_GROUP_LABELS[group.frequency];
+              const totalGroupPages = Math.max(
+                1,
+                Math.ceil(group.matched.length / pageSize)
+              );
+              const groupPage = Math.min(
+                groupPages[group.frequency] ?? 1,
+                totalGroupPages
+              );
+              const groupStart = (groupPage - 1) * pageSize;
+              const rows = group.matched.slice(
+                groupStart,
+                groupStart + pageSize
+              );
+              return (
+                <article className="add-task-group-card" key={group.frequency}>
+                  <div className="add-task-group-head">
+                    <h4 className="add-task-group-title">{label}</h4>
+                    <div className="add-task-group-head-controls">
+                      <input
+                        type="search"
+                        className="input add-task-group-search"
+                        value={groupSearch[group.frequency] ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setGroupSearch((prev) => ({
+                            ...prev,
+                            [group.frequency]: value,
+                          }));
+                          setGroupPages((prev) => ({
+                            ...prev,
+                            [group.frequency]: 1,
+                          }));
+                        }}
+                        placeholder="Search in this table…"
+                        aria-label={`Search ${label}`}
+                        autoComplete="off"
+                      />
+                      <select
+                        className="input add-task-group-filter"
+                        value={groupFilter[group.frequency] ?? "all"}
+                        onChange={(e) => {
+                          const value = e.target.value as Filter;
+                          setGroupFilter((prev) => ({
+                            ...prev,
+                            [group.frequency]: value,
+                          }));
+                          setGroupPages((prev) => ({
+                            ...prev,
+                            [group.frequency]: 1,
+                          }));
+                        }}
+                        aria-label={`Filter ${label} by status`}
+                      >
+                        <option value="all">All</option>
+                        <option value="active">Active</option>
+                        <option value="done">Stopped</option>
+                      </select>
+                      <span className="add-task-group-count">
+                        {group.matched.length}
+                      </span>
+                    </div>
+                  </div>
+                  {group.matched.length === 0 ? (
+                    <p className="add-task-empty add-task-group-empty">
+                      No tasks match this table's search or filter.
+                    </p>
+                  ) : (
+                    <div className="add-task-table-wrap">
+                      <table className="add-task-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Task</th>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Frequency</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((task, idx) => (
+                            <tr key={task.id}>
+                              <td>{groupStart + idx + 1}</td>
+                              <td>{task.title}</td>
+                              <td>{formatIsoDateDdMmYyyy(task.startDate)}</td>
+                              <td>{task.category ?? "-"}</td>
+                              <td className="add-task-table-freq">
+                                {formatFrequencyDisplay(task)}
+                              </td>
+                              <td>{task.endDate ? "Stopped" : "Active"}</td>
+                              <td>
+                                <div className="row-actions">
+                                  <button
+                                    type="button"
+                                    className="btn ghost sm table-icon-btn"
+                                    onClick={() => onEditTask(task)}
+                                    disabled={Boolean(task.endDate)}
+                                    title={task.endDate ? "Stopped task cannot be edited" : "Edit task"}
+                                    aria-label="Edit task"
+                                  >
+                                    <PencilLine size={15} aria-hidden="true" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn ghost sm table-icon-btn"
+                                    onClick={() => requestStopTask(task.id)}
+                                    disabled={Boolean(task.endDate)}
+                                    title={task.endDate ? "Task already stopped" : "Stop task"}
+                                    aria-label="Stop task"
+                                  >
+                                    <Trash2 size={15} aria-hidden="true" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {group.matched.length > pageSize ? (
+                    <Pagination
+                      totalItems={group.matched.length}
+                      pageSize={pageSize}
+                      currentPage={groupPage}
+                      onPageChange={(p) =>
+                        setGroupPages((prev) => ({
+                          ...prev,
+                          [group.frequency]: p,
+                        }))
+                      }
+                    />
+                  ) : null}
+                </article>
+              );
+            })
+          : null}
       </section>
     </main>
   );
