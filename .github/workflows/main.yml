@@ -117,6 +117,11 @@ jobs:
             [ -d "$FRONT" ] && tar -czf "$BKP/frontend_$TS.tgz" -C "$APP" frontend || true
             [ -d "$BACK" ] && tar -czf "$BKP/backend_$TS.tgz" -C "$APP" backend || true
 
+            echo "=== Prune old backups (keep only the latest set) ==="
+            ls -t "$BKP"/frontend_*.tgz 2>/dev/null | tail -n +2 | xargs -r rm -f
+            ls -t "$BKP"/backend_*.tgz 2>/dev/null | tail -n +2 | xargs -r rm -f
+            ls -lah "$BKP"
+
             echo "=== Deploy frontend (Vite dist → frontend/) ==="
             rm -rf "$FRONT"/*
             rm -rf /tmp/vpdm_deploy/extract_frontend
