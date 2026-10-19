@@ -13,6 +13,7 @@ import {
   formatTaskOccurrenceDateLabel,
   formatTaskCompletedDateLabel,
   getTaskCompletedIsoForSelectedWindow,
+  getCompletionRecordIso,
   isTaskVisibleWithCarryForward,
   weekdayNameInKolkataFromIso,
 } from "../taskSchedule";
@@ -64,8 +65,14 @@ export function DashboardPage() {
     todayIsoKolkata()
   );
   const [taskSearch] = useState("");
-  const { tasks, loading, error, completionDatesByTaskId, setTaskCompletionForDate } =
-    useTasks(user?.id, selectedDateIso);
+  const {
+    tasks,
+    loading,
+    error,
+    completionDatesByTaskId,
+    completedOnByTaskDate,
+    setTaskCompletionForDate,
+  } = useTasks(user?.id, selectedDateIso);
   const {
     clients: followupClients,
     grouped: followupGrouped,
@@ -297,7 +304,11 @@ export function DashboardPage() {
                           onChange={(e) =>
                             void setTaskCompletionForDate(
                               t.id,
-                              selectedDateIso,
+                              getCompletionRecordIso(
+                                t,
+                                selectedDateIso,
+                                todayIsoKolkata()
+                              ),
                               e.target.checked
                             )
                           }
@@ -309,7 +320,8 @@ export function DashboardPage() {
                         {formatTaskCompletedDateLabel(
                           t,
                           selectedDateIso,
-                          completionDatesByTaskId
+                          completionDatesByTaskId,
+                          completedOnByTaskDate
                         )}
                       </td>
                       <td>{t.category ?? "-"}</td>
@@ -369,7 +381,7 @@ export function DashboardPage() {
                           onChange={(e) =>
                             void setTaskCompletionForDate(
                               t.id,
-                              selectedDateIso,
+                              doneIsoByTaskId.get(t.id) ?? selectedDateIso,
                               e.target.checked
                             )
                           }
@@ -381,7 +393,8 @@ export function DashboardPage() {
                         {formatTaskCompletedDateLabel(
                           t,
                           selectedDateIso,
-                          completionDatesByTaskId
+                          completionDatesByTaskId,
+                          completedOnByTaskDate
                         )}
                       </td>
                       <td>{t.category ?? "-"}</td>

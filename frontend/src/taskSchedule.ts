@@ -190,6 +190,23 @@ function hasCompletionOnOrAfter(
 
 export type CompletionDatesByTaskId = Map<number, Set<string>>;
 
+/** `${taskId}|${occurrenceDateIso}` -> ISO day the checkbox was actually ticked. */
+export type CompletedOnByTaskDate = Map<string, string>;
+
+export function completedOnKey(taskId: number, dateIso: string): string {
+  return `${taskId}|${dateIso}`;
+}
+
+export function buildCompletedOnMap(
+  rows: { taskId: number; date: string; completedOn?: string }[]
+): CompletedOnByTaskDate {
+  const m = new Map<string, string>();
+  for (const r of rows) {
+    if (r.completedOn) m.set(completedOnKey(r.taskId, r.date), r.completedOn);
+  }
+  return m;
+}
+
 export function buildCompletionDatesMap(
   rows: { taskId: number; date: string }[]
 ): CompletionDatesByTaskId {
@@ -355,6 +372,28 @@ export function getNextOccurrenceExclusiveIso(
   return null;
 }
 
+/**
+ * Date to store when the user ticks the checkbox: the actual day the tick
+ * happens (`todayIso`), as long as it falls inside the occurrence window that
+ * contains `selectedIso` and within the series bounds. Outside that window we
+ * fall back to `selectedIso` so the completion stays attributed to the right
+ * occurrence. Daily tasks always use `selectedIso` (their window is the day).
+ */
+export function getCompletionRecordIso(
+  t: Task,
+  selectedIso: string,
+  todayIso: string
+): string {
+  if (t.frequency === "daily") return selectedIso;
+  const anchor = getTaskOccurrenceAnchorIso(t, selectedIso);
+  if (!anchor) return selectedIso;
+  if (todayIso < anchor) return selectedIso;
+  if (t.endDate !== null && todayIso > t.endDate) return selectedIso;
+  const nextExclusive = getNextOccurrenceExclusiveIso(t, anchor);
+  if (nextExclusive !== null && todayIso >= nextExclusive) return selectedIso;
+  return todayIso;
+}
+
 /** Human-readable scheduled date for the task row (e.g. 10 April, 2026). */
 export function formatTaskOccurrenceDateLabel(
   task: Task,
@@ -489,7 +528,8 @@ export function getTaskCompletedIsoForSelectedWindow(
 export function formatTaskCompletedDateLabel(
   task: Task,
   selectedIso: string,
-  completionDatesByTaskId: CompletionDatesByTaskId
+  completionDatesByTaskId: CompletionDatesByTaskId,
+  completedOnByTaskDate?: CompletedOnByTaskDate
 ): string {
   const iso = getTaskCompletedIsoForSelectedWindow(
     task,
@@ -497,5 +537,7 @@ export function formatTaskCompletedDateLabel(
     completionDatesByTaskId
   );
   if (!iso) return "—";
-  return formatIsoDateDayMonthCommaYear(iso);
+  // Prefer the day the checkbox was actually ticked over the stored occurrence date.
+  const clickedOn = completedOnByTaskDate?.get(completedOnKey(task.id, iso));
+  return formatIsoDateDayMonthCommaYear(clickedOn ?? iso);
 }

@@ -17,6 +17,7 @@ import {
   formatTaskOccurrenceDateLabel,
   formatTaskCompletedDateLabel,
   getTaskCompletedIsoForSelectedWindow,
+  getCompletionRecordIso,
   isTaskVisibleWithCarryForward,
   WEEKDAYS,
   getFirstScheduledIso,
@@ -127,6 +128,7 @@ export function TaskBoard() {
     updateTask,
     completedTaskIds,
     completionDatesByTaskId,
+    completedOnByTaskDate,
     setTaskCompletionForDate,
   } = useTasks(user?.id, selectedDateIso);
   const { categories } = useCategories(user?.id);
@@ -349,9 +351,14 @@ export function TaskBoard() {
           onAdd={openCreate}
           completedTaskIds={completedTaskIds}
           completionDatesByTaskId={completionDatesByTaskId}
+          completedOnByTaskDate={completedOnByTaskDate}
           setTaskCompletionForDate={setTaskCompletionForDate}
           onToggle={(task, completed) =>
-            void setTaskCompletionForDate(task.id, selectedDateIso, completed)
+            void setTaskCompletionForDate(
+              task.id,
+              getCompletionRecordIso(task, selectedDateIso, todayIsoKolkata()),
+              completed
+            )
           }
         />
         <TaskSection
@@ -363,9 +370,14 @@ export function TaskBoard() {
           onAdd={openCreate}
           completedTaskIds={completedTaskIds}
           completionDatesByTaskId={completionDatesByTaskId}
+          completedOnByTaskDate={completedOnByTaskDate}
           setTaskCompletionForDate={setTaskCompletionForDate}
           onToggle={(task, completed) =>
-            void setTaskCompletionForDate(task.id, selectedDateIso, completed)
+            void setTaskCompletionForDate(
+              task.id,
+              getCompletionRecordIso(task, selectedDateIso, todayIsoKolkata()),
+              completed
+            )
           }
         />
         <TaskSection
@@ -377,9 +389,14 @@ export function TaskBoard() {
           onAdd={openCreate}
           completedTaskIds={completedTaskIds}
           completionDatesByTaskId={completionDatesByTaskId}
+          completedOnByTaskDate={completedOnByTaskDate}
           setTaskCompletionForDate={setTaskCompletionForDate}
           onToggle={(task, completed) =>
-            void setTaskCompletionForDate(task.id, selectedDateIso, completed)
+            void setTaskCompletionForDate(
+              task.id,
+              getCompletionRecordIso(task, selectedDateIso, todayIsoKolkata()),
+              completed
+            )
           }
         />
         <TaskSection
@@ -391,9 +408,14 @@ export function TaskBoard() {
           onAdd={openCreate}
           completedTaskIds={completedTaskIds}
           completionDatesByTaskId={completionDatesByTaskId}
+          completedOnByTaskDate={completedOnByTaskDate}
           setTaskCompletionForDate={setTaskCompletionForDate}
           onToggle={(task, completed) =>
-            void setTaskCompletionForDate(task.id, selectedDateIso, completed)
+            void setTaskCompletionForDate(
+              task.id,
+              getCompletionRecordIso(task, selectedDateIso, todayIsoKolkata()),
+              completed
+            )
           }
         />
         <TaskSection
@@ -405,9 +427,14 @@ export function TaskBoard() {
           onAdd={openCreate}
           completedTaskIds={completedTaskIds}
           completionDatesByTaskId={completionDatesByTaskId}
+          completedOnByTaskDate={completedOnByTaskDate}
           setTaskCompletionForDate={setTaskCompletionForDate}
           onToggle={(task, completed) =>
-            void setTaskCompletionForDate(task.id, selectedDateIso, completed)
+            void setTaskCompletionForDate(
+              task.id,
+              getCompletionRecordIso(task, selectedDateIso, todayIsoKolkata()),
+              completed
+            )
           }
         />
 
@@ -645,6 +672,7 @@ type TaskSectionProps = {
   selectedDateIso: string;
   completedTaskIds: number[];
   completionDatesByTaskId: Map<number, Set<string>>;
+  completedOnByTaskDate: Map<string, string>;
   setTaskCompletionForDate: (taskId: number, dateIso: string, completed: boolean) => Promise<void>;
   onAdd: (frequency: Frequency) => void;
   onToggle: (task: Task, completed: boolean) => void;
@@ -658,6 +686,7 @@ function TaskSection({
   selectedDateIso,
   completedTaskIds,
   completionDatesByTaskId,
+  completedOnByTaskDate,
   setTaskCompletionForDate,
   onAdd,
   onToggle,
@@ -739,7 +768,8 @@ function TaskSection({
                     {formatTaskCompletedDateLabel(
                       task,
                       selectedDateIso,
-                      completionDatesByTaskId
+                      completionDatesByTaskId,
+                      completedOnByTaskDate
                     )}
                   </td>
                   <td>{task.category ?? "-"}</td>

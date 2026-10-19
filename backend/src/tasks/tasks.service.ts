@@ -29,6 +29,20 @@ type TaskRecord = {
   vpdmArea: string;
 };
 
+function ymdInKolkata(date: Date): string {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = fmt.formatToParts(date);
+  const y = parts.find((p) => p.type === "year")?.value ?? "1970";
+  const m = parts.find((p) => p.type === "month")?.value ?? "01";
+  const d = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${y}-${m}-${d}`;
+}
+
 function optStr(val: unknown, max: number): string | null {
   if (val === undefined || val === null || val === "") return null;
   if (typeof val !== "string") return null;
@@ -322,7 +336,9 @@ export class TasksService {
     userId: string,
     from: string,
     to: string
-  ): Promise<{ items: { taskId: number; date: string }[] }> {
+  ): Promise<{
+    items: { taskId: number; date: string; completedOn: string }[];
+  }> {
     if (!isIsoDate(from) || !isIsoDate(to)) {
       throw new BadRequestException("from and to must be YYYY-MM-DD");
     }
@@ -336,13 +352,17 @@ export class TasksService {
         taskSeries: { userId },
         date: { gte: fromDay, lte: toDay },
       },
-      select: { taskId: true, date: true },
+      select: { taskId: true, date: true, completedAt: true },
     });
     return {
-      items: rows.map((r: { taskId: number; date: Date }) => ({
-        taskId: r.taskId,
-        date: r.date.toISOString().slice(0, 10),
-      })),
+      items: rows.map(
+        (r: { taskId: number; date: Date; completedAt: Date }) => ({
+          taskId: r.taskId,
+          date: r.date.toISOString().slice(0, 10),
+          // Calendar day (Asia/Kolkata) the checkbox was actually ticked.
+          completedOn: ymdInKolkata(r.completedAt),
+        })
+      ),
     };
   }
 

@@ -3,8 +3,11 @@ import type { Task, TaskUpsertPayload } from "./types";
 import { apiDelete, apiGet, apiSendJson } from "./api";
 import { toastApiError } from "./toast";
 import {
+  buildCompletedOnMap,
   buildCompletionDatesMap,
+  completedOnKey,
   minCompletionRangeStartIso,
+  type CompletedOnByTaskDate,
   type CompletionDatesByTaskId,
 } from "./taskSchedule";
 
@@ -53,6 +56,8 @@ export function useTasks(
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completionDatesByTaskId, setCompletionDatesByTaskId] =
     useState<CompletionDatesByTaskId>(() => new Map());
+  const [completedOnByTaskDate, setCompletedOnByTaskDate] =
+    useState<CompletedOnByTaskDate>(() => new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,6 +99,7 @@ export function useTasks(
   useEffect(() => {
     if (!userId || !selectedDateIso) {
       setCompletionDatesByTaskId(new Map());
+      setCompletedOnByTaskDate(new Map());
       return;
     }
     void (async () => {
@@ -105,12 +111,16 @@ export function useTasks(
           maxIso(selectedDateIso, todayIsoKolkata()),
           addDaysIso(selectedDateIso, 366)
         );
-        const res = await apiGet<{ items: { taskId: number; date: string }[] }>(
+        const res = await apiGet<{
+          items: { taskId: number; date: string; completedOn?: string }[];
+        }>(
           `/tasks/completion-dates?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
         );
         setCompletionDatesByTaskId(buildCompletionDatesMap(res.items ?? []));
+        setCompletedOnByTaskDate(buildCompletedOnMap(res.items ?? []));
       } catch {
         setCompletionDatesByTaskId(new Map());
+        setCompletedOnByTaskDate(new Map());
       }
     })();
   }, [selectedDateIso, userId, tasks]);
@@ -180,6 +190,14 @@ export function useTasks(
     async (taskId: number, dateIso: string, completed: boolean) => {
       setError(null);
       const beforeMap = cloneCompletionMap(completionDatesByTaskId);
+      const beforeCompletedOn = new Map(completedOnByTaskDate);
+      setCompletedOnByTaskDate((prev) => {
+        const next = new Map(prev);
+        const key = completedOnKey(taskId, dateIso);
+        if (completed) next.set(key, todayIsoKolkata());
+        else next.delete(key);
+        return next;
+      });
       setCompletionDatesByTaskId((prev) => {
         const next = new Map(prev);
         const prior = next.get(taskId);
@@ -198,11 +216,12 @@ export function useTasks(
         );
       } catch (e) {
         setCompletionDatesByTaskId(beforeMap);
+        setCompletedOnByTaskDate(beforeCompletedOn);
         setError(errMessage(e));
         toastApiError(e, "Failed to update task completion");
       }
     },
-    [completionDatesByTaskId]
+    [completionDatesByTaskId, completedOnByTaskDate]
   );
 
   const importTasks = useCallback(async (list: Task[]) => {
@@ -231,6 +250,7 @@ export function useTasks(
     removeTask,
     completedTaskIds,
     completionDatesByTaskId,
+    completedOnByTaskDate,
     setTaskCompletionForDate,
     importTasks,
   };

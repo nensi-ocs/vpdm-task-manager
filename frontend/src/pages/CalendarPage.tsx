@@ -6,6 +6,7 @@ import {
   getNextOccurrenceExclusiveIso,
   getTaskCompletedIsoForSelectedWindow,
   weekdayNameInKolkataFromIso,
+  completedOnKey,
 } from "../taskSchedule";
 import { formatIsoDateDdMmYyyy, formatIsoMonthYear } from "../dateFormat";
 import "./calendar-page.css";
@@ -234,10 +235,8 @@ export function CalendarPage() {
     [fromIso, toIsoInclusive, todayIso]
   );
 
-  const { tasks, loading, error, completionDatesByTaskId } = useTasks(
-    user?.id,
-    completionAnchorIso
-  );
+  const { tasks, loading, error, completionDatesByTaskId, completedOnByTaskDate } =
+    useTasks(user?.id, completionAnchorIso);
 
   const eventsByIso = useMemo(() => {
     const map = new Map<string, CalendarCellEvent[]>();
@@ -263,11 +262,14 @@ export function CalendarPage() {
 
         // If completed late: keep the original due date as missed (red) and the completion date green.
         if (done !== null) {
-          if (done === dueIso) {
+          // Prefer the day the checkbox was actually ticked over the stored occurrence date.
+          const doneShown =
+            completedOnByTaskDate.get(completedOnKey(t.id, done)) ?? done;
+          if (doneShown === dueIso) {
             pushEvent(dueIso, t, "completed");
           } else {
             pushEvent(dueIso, t, "missed");
-            pushEvent(done, t, "completed");
+            pushEvent(doneShown, t, "completed");
           }
           continue;
         }
@@ -315,7 +317,7 @@ export function CalendarPage() {
     }
 
     return map;
-  }, [tasks, fromIso, toIsoInclusive, todayIso, completionDatesByTaskId]);
+  }, [tasks, fromIso, toIsoInclusive, todayIso, completionDatesByTaskId, completedOnByTaskDate]);
 
   const title = view === "week" ? fmtWeekTitle(fromIso) : fmtMonthTitle(cursorIso);
 
