@@ -60,7 +60,7 @@ pm2 delete vpdm-task-api 2>/dev/null || true
 
 Then run a fresh deploy so PM2 starts from `/var/www/html/vpdm-task-manager/backend`.
 
-## 2) Apache (`app.vpdm.cloud` on 443) — fixes **503 Service Unavailable**
+## 2) Apache (`app.vpdm.in` on 443) — fixes **503 Service Unavailable**
 
 A **503** from Apache usually means the reverse proxy cannot reach **PM2** on `127.0.0.1` (wrong port, process not running, or proxy modules disabled).
 
@@ -80,10 +80,10 @@ Put **`/api` before `/`** so API requests are not sent to the frontend port:
 
 ```apache
 <VirtualHost *:443>
-    ServerName app.vpdm.cloud
+    ServerName app.vpdm.in
 
     SSLEngine on
-    # Certbot example: /etc/letsencrypt/live/app.vpdm.cloud/fullchain.pem and privkey.pem
+    # Certbot example: /etc/letsencrypt/live/app.vpdm.in/fullchain.pem and privkey.pem
     SSLCertificateFile /etc/ssl/certs/your-fullchain.pem
     SSLCertificateKeyFile /etc/ssl/private/your-privkey.pem
 
@@ -100,7 +100,7 @@ Put **`/api` before `/`** so API requests are not sent to the frontend port:
 
 Adjust **3001** / **5173** if your `PORT` or `FRONT_PORT` in the workflow differ.
 
-In **`backend/.env`** on the server, set **`CORS_ORIGINS`** to include `https://app.vpdm.cloud` (see `backend/.env.example`).
+In **`backend/.env`** on the server, set **`CORS_ORIGINS`** to include `https://app.vpdm.in` (see `backend/.env.example`).
 
 ## 3) Nginx config (if you use Nginx instead of Apache)
 

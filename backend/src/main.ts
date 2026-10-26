@@ -16,6 +16,7 @@ async function bootstrap() {
     })
   );
   const defaultOrigins = [
+    "https://app.vpdm.in",
     "http://127.0.0.1:5173",
     "http://localhost:5173",
   ];
@@ -25,7 +26,8 @@ async function bootstrap() {
     .filter(Boolean);
 
   app.enableCors({
-    origin: envOrigins.length > 0 ? envOrigins : defaultOrigins,
+    // Always allow the live site, even if the server .env still lists an old domain
+    origin: Array.from(new Set([...defaultOrigins, ...envOrigins])),
     credentials: true,
   });
   app.setGlobalPrefix("api");
