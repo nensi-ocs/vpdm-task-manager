@@ -5,8 +5,8 @@ On each push to `main`, it builds deployment artifacts and deploys to your VPS o
 
 Layout matches **jwell_b2b-style** paths under one app directory:
 
-- `/var/www/html/vpdm-client-task-manager/frontend` — Vite build, served by PM2 **`vpdm-task-web`** on **port 5173** (`npx serve`, same port family as `vite dev`)
-- `/var/www/html/vpdm-client-task-manager/backend` — Nest API + Prisma + `.env` + PM2 **`vpdm-task-api`**
+- `/var/www/html/vpdm-client-task-manager/frontend` — Vite build, served by PM2 **`vpdm-client-task-web`** on **port 5173** (`npx serve`, same port family as `vite dev`)
+- `/var/www/html/vpdm-client-task-manager/backend` — Nest API + Prisma + `.env` + PM2 **`vpdm-client-task-api`**
 - `/var/www/html/vpdm-client-task-manager/backups` — deployment tar backups
 
 Change **`FRONT_PORT`** in `.github/workflows/main.yml` if **5173** clashes with another app on the VPS.
@@ -55,7 +55,7 @@ While fixing grants, set **`RUN_PRISMA_MIGRATE=false`** in `.github/workflows/ma
 If you previously ran PM2 from `~/apps/vpdm-task-manager/backend`, remove the old process once so the new path is used:
 
 ```bash
-pm2 delete vpdm-task-api 2>/dev/null || true
+pm2 delete vpdm-client-task-api 2>/dev/null || true
 ```
 
 Then run a fresh deploy so PM2 starts from `/var/www/html/vpdm-client-task-manager/backend`.
@@ -74,7 +74,7 @@ curl -sS -I http://127.0.0.1:5173/ | head -1
 curl -sS -I http://127.0.0.1:3001/api | head -1
 ```
 
-If either `curl` fails, fix PM2 first (`pm2 logs vpdm-task-web`, `pm2 logs vpdm-task-api`). Then check Apache error log: `sudo tail -50 /var/log/apache2/error.log`.
+If either `curl` fails, fix PM2 first (`pm2 logs vpdm-client-task-web`, `pm2 logs vpdm-client-task-api`). Then check Apache error log: `sudo tail -50 /var/log/apache2/error.log`.
 
 Put **`/api` before `/`** so API requests are not sent to the frontend port:
 
@@ -104,7 +104,7 @@ In **`backend/.env`** on the server, set **`CORS_ORIGINS`** to include `https://
 
 ## 3) Nginx config (if you use Nginx instead of Apache)
 
-**Recommended (matches PM2 frontend):** proxy the browser to **`vpdm-task-web`** on **5173** so Nginx never exposes `backend/` or `.env` as static files.
+**Recommended (matches PM2 frontend):** proxy the browser to **`vpdm-client-task-web`** on **5173** so Nginx never exposes `backend/` or `.env` as static files.
 
 Create `/etc/nginx/sites-available/vpdm-task-manager`:
 
@@ -135,7 +135,7 @@ server {
 
 Adjust **`3001`** if `PORT` in `backend/.env` differs; adjust **`5173`** if you changed `FRONT_PORT` in the workflow.
 
-**Alternative (no PM2 for frontend):** set `root /var/www/html/vpdm-client-task-manager/frontend;` and `try_files $uri /index.html` under `location /` instead of `proxy_pass` to **5173** — then you can remove the `vpdm-task-web` PM2 step from the workflow if you prefer Nginx-only static files.
+**Alternative (no PM2 for frontend):** set `root /var/www/html/vpdm-client-task-manager/frontend;` and `try_files $uri /index.html` under `location /` instead of `proxy_pass` to **5173** — then you can remove the `vpdm-client-task-web` PM2 step from the workflow if you prefer Nginx-only static files.
 
 Enable and reload:
 
@@ -159,7 +159,7 @@ In GitHub repo settings, add:
 The workflow has 2 jobs:
 
 1. **Build job** — builds `frontend/dist` and `backend/dist`, packs `frontend.tgz` and `backend.tgz` (includes `backend/.env` in the tarball when that file exists in the repo).
-2. **Deploy job** — uploads to `/tmp/vpdm_deploy`, backs up `frontend/` and `backend/` into `backups/`, extracts artifacts into `/var/www/html/vpdm-client-task-manager/frontend` and `.../backend`, preserves existing server `backend/.env` when present, runs `npm ci --omit=dev`, optional `prisma migrate deploy`, restarts PM2 `vpdm-task-api`, runs a local HTTP health check on `/api`.
+2. **Deploy job** — uploads to `/tmp/vpdm_deploy`, backs up `frontend/` and `backend/` into `backups/`, extracts artifacts into `/var/www/html/vpdm-client-task-manager/frontend` and `.../backend`, preserves existing server `backend/.env` when present, runs `npm ci --omit=dev`, optional `prisma migrate deploy`, restarts PM2 `vpdm-client-task-api`, runs a local HTTP health check on `/api`.
 
 ## 6) SSL (recommended)
 

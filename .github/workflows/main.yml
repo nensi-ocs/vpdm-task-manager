@@ -165,17 +165,17 @@ jobs:
             echo "=== Start/restart backend with PM2 ==="
             command -v pm2 >/dev/null 2>&1 || (echo "ERROR: pm2 not installed" && exit 1)
 
-            if pm2 describe vpdm-task-api >/dev/null 2>&1; then
-              pm2 restart vpdm-task-api --update-env
+            if pm2 describe vpdm-client-task-api >/dev/null 2>&1; then
+              pm2 restart vpdm-client-task-api --update-env
             else
-              pm2 start dist/main.js --name vpdm-task-api
+              pm2 start dist/main.js --name vpdm-client-task-api
             fi
 
             echo "=== Start/restart frontend static server (PM2 + serve) ==="
-            if pm2 describe vpdm-task-web >/dev/null 2>&1; then
-              pm2 restart vpdm-task-web --update-env
+            if pm2 describe vpdm-client-task-web >/dev/null 2>&1; then
+              pm2 restart vpdm-client-task-web --update-env
             else
-              pm2 start bash --name vpdm-task-web -- -c "cd \"$FRONT\" && exec npx --yes serve@14 -s . -l $FRONT_PORT"
+              pm2 start bash --name vpdm-client-task-web -- -c "cd \"$FRONT\" && exec npx --yes serve@14 -s . -l $FRONT_PORT"
             fi
 
             pm2 save
