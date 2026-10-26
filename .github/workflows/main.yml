@@ -98,7 +98,7 @@ jobs:
             set -euo pipefail
 
             # Same layout as jwell_b2b: /var/www/html/<app>/{frontend,backend,backups}
-            APP="/var/www/html/vpdm-task-manager"
+            APP="/var/www/html/vpdm-client-task-manager"
             FRONT="$APP/frontend"
             BACK="$APP/backend"
             BKP="$APP/backups"
