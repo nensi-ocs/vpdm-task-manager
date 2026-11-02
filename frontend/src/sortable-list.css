@@ -1,0 +1,29 @@
+.sortable-item {
+  cursor: grab;
+}
+
+.sortable-item:active {
+  cursor: grabbing;
+}
+
+.sortable-dragging {
+  opacity: 0.5;
+}
+
+li.sortable-drop-before-y,
+tr.sortable-drop-before-y > td {
+  box-shadow: inset 0 3px 0 var(--accent, #5b5bf6);
+}
+
+li.sortable-drop-after-y,
+tr.sortable-drop-after-y > td {
+  box-shadow: inset 0 -3px 0 var(--accent, #5b5bf6);
+}
+
+.sortable-drop-before-x {
+  box-shadow: inset 4px 0 0 var(--accent, #5b5bf6);
+}
+
+.sortable-drop-after-x {
+  box-shadow: inset -4px 0 0 var(--accent, #5b5bf6);
+}

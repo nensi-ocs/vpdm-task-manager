@@ -18,6 +18,7 @@ import {
   weekdayNameInKolkataFromIso,
 } from "../taskSchedule";
 import { toastApiError } from "../toast";
+import { useSortableList } from "../useSortableList";
 
 function ymdInKolkata(date: Date): string {
   const fmt = new Intl.DateTimeFormat("en-US", {
@@ -81,6 +82,12 @@ export function DashboardPage() {
     completedClientIds,
     setClientCompletionForDate,
   } = useFollowupClients(user?.id, selectedDateIso);
+  const trackDrag = useSortableList("tracks", user?.id);
+  const clientDrag = useSortableList("followup-clients", user?.id);
+  const taskDrag = useSortableList("tasks", user?.id);
+
+  const orderedTracks = trackDrag.sort(VPDM_TRACKS, (t) => t);
+  const trackDropOptions = { groupIds: [...orderedTracks], axis: "x" as const };
 
   const isSundayInKolkata = useMemo(
     () => weekdayNameInKolkataFromIso(selectedDateIso) === "Sunday",
@@ -171,11 +178,21 @@ export function DashboardPage() {
 
   const incompleteStart = (incompletePage - 1) * pageSize;
   const completedStart = (completedPage - 1) * pageSize;
-  const incompletePageTasks = incompleteTasks.slice(
+  const orderedIncomplete = taskDrag.sort(incompleteTasks, (t) => String(t.id));
+  const orderedCompleted = taskDrag.sort(completedTasks, (t) => String(t.id));
+  const incompleteDropOptions = {
+    group: "incomplete",
+    groupIds: orderedIncomplete.map((t) => String(t.id)),
+  };
+  const completedDropOptions = {
+    group: "completed",
+    groupIds: orderedCompleted.map((t) => String(t.id)),
+  };
+  const incompletePageTasks = orderedIncomplete.slice(
     incompleteStart,
     incompleteStart + pageSize
   );
-  const completedPageTasks = completedTasks.slice(
+  const completedPageTasks = orderedCompleted.slice(
     completedStart,
     completedStart + pageSize
   );
@@ -295,7 +312,11 @@ export function DashboardPage() {
                 </thead>
                 <tbody>
                   {incompletePageTasks.map((t, idx) => (
-                    <tr key={t.id}>
+                    <tr
+                      key={t.id}
+                      className={taskDrag.dragClass(String(t.id))}
+                      {...taskDrag.itemProps(String(t.id), incompleteDropOptions)}
+                    >
                       <td>{incompleteStart + idx + 1}</td>
                       <td>
                         <input
@@ -372,7 +393,11 @@ export function DashboardPage() {
                 </thead>
                 <tbody>
                   {completedPageTasks.map((t, idx) => (
-                    <tr key={t.id} className="done">
+                    <tr
+                      key={t.id}
+                      className={`done ${taskDrag.dragClass(String(t.id))}`}
+                      {...taskDrag.itemProps(String(t.id), completedDropOptions)}
+                    >
                       <td>{completedStart + idx + 1}</td>
                       <td>
                         <input
@@ -455,8 +480,12 @@ export function DashboardPage() {
           <section className="panel dashboard-followup-panel">
             <h3 className="dashboard-followup-panel-title">By track</h3>
             <div className="dashboard-tracker-grid">
-              {VPDM_TRACKS.map((track) => (
-                <article key={track} className="dashboard-tracker-card">
+              {orderedTracks.map((track) => (
+                <article
+                  key={track}
+                  className={`dashboard-tracker-card ${trackDrag.dragClass(track, "x")}`}
+                  {...trackDrag.itemProps(track, trackDropOptions)}
+                >
                   <h4>{track}</h4>
                   <ul>
                     <li className="dashboard-tracker-empty">
@@ -476,26 +505,41 @@ export function DashboardPage() {
           <section className="panel dashboard-followup-panel">
             <h3 className="dashboard-followup-panel-title">By track</h3>
             <div className="dashboard-tracker-grid">
-              {VPDM_TRACKS.map((track) => {
-                const rows = (followupGrouped.get(track) ?? [])
-                  .slice()
-                  .sort((a, b) => a.clientName.localeCompare(b.clientName))
+              {orderedTracks.map((track) => {
+                const rows = clientDrag
+                  .sort(
+                    [...(followupGrouped.get(track) ?? [])].sort((a, b) =>
+                      a.clientName.localeCompare(b.clientName)
+                    ),
+                    (r) => r.id
+                  )
                   .map((r) => ({
                     id: r.id,
                     client: r.clientName,
                     owner: r.owner ?? "",
                   }));
                 return (
-                  <article key={track} className="dashboard-tracker-card">
+                  <article
+                    key={track}
+                    className={`dashboard-tracker-card ${trackDrag.dragClass(track, "x")}`}
+                    {...trackDrag.itemProps(track, trackDropOptions)}
+                  >
                     <h4>{track}</h4>
                     <ul>
                       {rows.length === 0 ? (
                         <li className="dashboard-tracker-empty">No clients</li>
                       ) : (
-                        rows.map((entry) => {
+                        rows.map((entry, idx) => {
                           const checked = completedClientIds.includes(entry.id);
                           return (
-                            <li key={`${track}-${entry.id}`}>
+                            <li
+                              key={`${track}-${entry.id}`}
+                              className={clientDrag.dragClass(entry.id)}
+                              {...clientDrag.itemProps(entry.id, {
+                                group: track,
+                                groupIds: rows.map((r) => r.id),
+                              })}
+                            >
                               <label className={checked ? "done" : ""}>
                                 <input
                                   type="checkbox"
@@ -504,7 +548,7 @@ export function DashboardPage() {
                                     void toggleFollowup(entry.id, e.target.checked)
                                   }
                                 />
-                                <span>{entry.client}</span>
+                                <span>{idx + 1}. {entry.client}</span>
                                 {entry.owner ? (
                                   <em>({entry.owner})</em>
                                 ) : (

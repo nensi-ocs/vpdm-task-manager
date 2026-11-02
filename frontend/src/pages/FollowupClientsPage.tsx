@@ -3,6 +3,7 @@ import { useAuth } from "../auth/AuthContext";
 import { VPDM_TRACKS } from "../vpdmCatalog";
 import { useFollowupClients } from "../useFollowupClients";
 import { toastApiError, toastSuccess } from "../toast";
+import { useSortableList } from "../useSortableList";
 import "./followup-clients-page.css";
 import { PencilLine, Trash2, X } from "lucide-react";
 
@@ -10,6 +11,11 @@ export function FollowupClientsPage() {
   const { user } = useAuth();
   const { clients, grouped, loading, error, addClient, updateClient, removeClient } =
     useFollowupClients(user?.id);
+  const trackDrag = useSortableList("tracks", user?.id);
+  const clientDrag = useSortableList("followup-clients", user?.id);
+
+  const orderedTracks = trackDrag.sort(VPDM_TRACKS, (t) => t);
+  const trackDropOptions = { groupIds: [...orderedTracks], axis: "x" as const };
   const [track, setTrack] = useState<string>(VPDM_TRACKS[0]);
   const [clientName, setClientName] = useState("");
   const [owner, setOwner] = useState("");
@@ -161,20 +167,44 @@ export function FollowupClientsPage() {
           <p>Loading...</p>
         ) : (
           <div className="followup-track-grid">
-            {VPDM_TRACKS.map((t) => {
-              const list = grouped.get(t) ?? [];
+            {orderedTracks.map((t) => {
+              const list = clientDrag.sort(grouped.get(t) ?? [], (c) => c.id);
+              const clientDropOptions = {
+                group: t,
+                groupIds: list.map((c) => c.id),
+                onMoveToGroup: (id: string, nextTrack: string) => {
+                  const moved = clients.find((c) => c.id === id);
+                  if (!moved) return;
+                  updateClient(id, {
+                    track: nextTrack,
+                    clientName: moved.clientName,
+                    owner: moved.owner ?? null,
+                  }).catch((err) => toastApiError(err, "Failed to move client"));
+                },
+              };
               return (
-                <article key={t} className="followup-track-card">
+                <article
+                  key={t}
+                  className={`followup-track-card ${trackDrag.dragClass(t, "x")}`}
+                  {...trackDrag.itemProps(t, trackDropOptions)}
+                >
                   <h4 className="followup-track-head">{t}</h4>
+                  <div {...clientDrag.containerProps(clientDropOptions)}>
                   {list.length === 0 ? (
                     <p className="followup-empty">
                       No clients yet.
                     </p>
                   ) : (
                     <ul className="followup-list">
-                      {list.map((c) => (
-                        <li key={c.id} className="followup-list-item">
-                          <span className="followup-client-name">{c.clientName}</span>
+                      {list.map((c, idx) => (
+                        <li
+                          key={c.id}
+                          className={`followup-list-item ${clientDrag.dragClass(c.id)}`}
+                          {...clientDrag.itemProps(c.id, clientDropOptions)}
+                        >
+                          <span className="followup-client-name">
+                            {idx + 1}. {c.clientName}
+                          </span>
                           <span className="followup-client-owner">
                             {c.owner ? `(${c.owner})` : "(-)"}
                           </span>
@@ -212,6 +242,7 @@ export function FollowupClientsPage() {
                       ))}
                     </ul>
                   )}
+                  </div>
                 </article>
               );
             })}

@@ -7,7 +7,7 @@ import { toastApiError, toastSuccess } from "../toast";
 import type { FollowupClient, PipelineClient, PipelineStage } from "../types";
 import { VPDM_TRACKS } from "../vpdmCatalog";
 import "./pipeline-clients-page.css";
-import { Trash2, X } from "lucide-react";
+import { GripVertical, Trash2, X } from "lucide-react";
 import { Pagination } from "../components/Pagination";
 
 type PipelineViewMode = "clients" | "board";
@@ -67,6 +67,44 @@ const STAGE_DETAILS: Record<string, string> = {
   deal_lost: "Client rejected / no response / budget issue. Add reason for analysis.",
 };
 
+const BOARD_ORDER_STORAGE_KEY = "pipeline-board-stage-order";
+
+function loadBoardOrder(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(BOARD_ORDER_STORAGE_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveBoardOrder(order: string[]) {
+  try {
+    localStorage.setItem(BOARD_ORDER_STORAGE_KEY, JSON.stringify(order));
+  } catch {
+    // The order still applies until the page is reloaded.
+  }
+}
+
+const BOARD_CLIENT_ORDER_STORAGE_KEY = "pipeline-board-client-order";
+
+function loadClientOrder(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(BOARD_CLIENT_ORDER_STORAGE_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveClientOrder(order: string[]) {
+  try {
+    localStorage.setItem(BOARD_CLIENT_ORDER_STORAGE_KEY, JSON.stringify(order));
+  } catch {
+    // The order still applies until the page is reloaded.
+  }
+}
+
 function isTerminalStage(stageKey: string): boolean {
   return stageKey === "onboarding" || stageKey === "deal_lost";
 }
@@ -95,6 +133,7 @@ export function PipelineClientsPage() {
     error,
     addClient,
     advanceClient,
+    moveClient,
     markLost,
     removeClient,
   } = usePipelineClients(user?.id);
@@ -108,6 +147,14 @@ export function PipelineClientsPage() {
 
   const [viewMode, setViewMode] = useState<PipelineViewMode>("board");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [boardOrder, setBoardOrder] = useState<string[]>(loadBoardOrder);
+  const [draggedStage, setDraggedStage] = useState<string | null>(null);
+  const [draggedClient, setDraggedClient] = useState<PipelineClient | null>(null);
+  const [clientOrder, setClientOrder] = useState<string[]>(loadClientOrder);
+  const [dropTargetClient, setDropTargetClient] = useState<{ id: string; after: boolean } | null>(
+    null
+  );
+  const [dropTargetStage, setDropTargetStage] = useState<string | null>(null);
   const [boardPageByStage, setBoardPageByStage] = useState<Record<string, number>>({});
   const [boardPageSizeByStage, setBoardPageSizeByStage] = useState<Record<string, number>>({});
   const [clientTablePage, setClientTablePage] = useState(1);
@@ -133,9 +180,46 @@ export function PipelineClientsPage() {
     null
   );
 
+  const boardStages = useMemo(() => {
+    const position = (key: string) => {
+      const i = boardOrder.indexOf(key);
+      return i === -1 ? boardOrder.length : i;
+    };
+    return [...stages].sort((a, b) => position(a.key) - position(b.key));
+  }, [stages, boardOrder]);
+
+  /** Stage key -> position on the board (the order the user set by dragging). */
+  const boardPositionByStageKey = useMemo(() => {
+    const m = new Map<string, number>();
+    boardStages.forEach((s, i) => m.set(s.key, i));
+    return m;
+  }, [boardStages]);
+
+  /**
+   * Stages with `order` rewritten to the user's board order, so the Progress
+   * dots show the position that was set by dragging. Until the user reorders,
+   * keep the server order (deal won/lost share one step).
+   */
+  const stagesForDots = useMemo(() => {
+    if (boardOrder.length === 0) return stages;
+    return boardStages.map((s, i) => ({ ...s, order: i }));
+  }, [stages, boardStages, boardOrder]);
+
+  function dropStageOn(targetKey: string) {
+    if (draggedStage && draggedStage !== targetKey) {
+      const keys = boardStages.map((s) => s.key);
+      const next = keys.filter((k) => k !== draggedStage);
+      next.splice(keys.indexOf(targetKey), 0, draggedStage);
+      setBoardOrder(next);
+      saveBoardOrder(next);
+    }
+    setDraggedStage(null);
+    setDropTargetStage(null);
+  }
+
   const stagesForAdd = useMemo(
-    () => stages.filter((s) => s.key !== "deal_lost"),
-    [stages]
+    () => boardStages.filter((s) => s.key !== "deal_lost"),
+    [boardStages]
   );
 
   useEffect(() => {
@@ -259,9 +343,16 @@ export function PipelineClientsPage() {
           stageLabel.includes(t)
       );
     });
-    list.sort(compareClientsByStepThenName);
+    // Order rows by the stage position the user set on the board.
+    const pos = (c: PipelineClient) =>
+      boardPositionByStageKey.get(c.stage) ?? 999;
+    list.sort(
+      (a, b) =>
+        pos(a) - pos(b) ||
+        compareClientsByStepThenName(a, b)
+    );
     return list;
-  }, [clients, queryTokens]);
+  }, [clients, queryTokens, boardPositionByStageKey]);
 
   const clientTableTotalPages = Math.max(
     1,
@@ -397,6 +488,38 @@ export function PipelineClientsPage() {
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : "Failed to save follow-up");
       toastApiError(err, "Failed to save follow-up");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Places the dragged client at the drop line (or the end of the stage's list). */
+  function placeClientInList(c: PipelineClient, list: PipelineClient[]) {
+    const ids = list.map((x) => x.id).filter((id) => id !== c.id);
+    const targetIndex = dropTargetClient ? ids.indexOf(dropTargetClient.id) : -1;
+    const insertAt =
+      targetIndex === -1 ? ids.length : targetIndex + (dropTargetClient?.after ? 1 : 0);
+    ids.splice(insertAt, 0, c.id);
+    const next = [...clientOrder.filter((id) => !ids.includes(id)), ...ids];
+    setClientOrder(next);
+    saveClientOrder(next);
+  }
+
+  async function moveClientToStage(c: PipelineClient, stageKey: string) {
+    if (c.stage === stageKey) return;
+    if (stageKey === "deal_lost") {
+      openLostModal(c);
+      return;
+    }
+    try {
+      setBusy(true);
+      const updated = await moveClient(c.id, stageKey);
+      toastSuccess(`Moved to ${updated.stageLabel}`);
+      if (updated.stage === "deal_won") {
+        openFollowupModalForDealWon(updated);
+      }
+    } catch (err) {
+      toastApiError(err, "Failed to move client");
     } finally {
       setBusy(false);
     }
@@ -570,11 +693,11 @@ export function PipelineClientsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {clientTableShown.map((c) => (
+                      {clientTableShown.map((c, idx) => (
                         <tr key={c.id}>
                           <td className="col-client p-client">
                             <div className="p-client-name" title={c.clientName}>
-                              {c.clientName}
+                              {clientTableStart + idx + 1}. {c.clientName}
                             </div>
                             {c.stage === "deal_lost" && c.lostReason ? (
                               <div className="p-client-lost" title={c.lostReason}>
@@ -589,7 +712,7 @@ export function PipelineClientsPage() {
                             <span className={`p-badge ${c.stage}`}>{c.stageLabel}</span>
                           </td>
                           <td className="col-flow">
-                            <PipelineStageDots stages={stages} currentStageKey={c.stage} />
+                            <PipelineStageDots stages={stagesForDots} currentStageKey={c.stage} />
                           </td>
                           <td className="col-actions">
                             <div className="p-actions">
@@ -660,8 +783,14 @@ export function PipelineClientsPage() {
 
         {!loading && viewMode === "board" ? (
           <div className="pipeline-tracker-grid" role="region" aria-label="Pipeline board">
-            {stages.map((s) => {
-              const list = filteredGrouped.get(s.key) ?? [];
+            {boardStages.map((s) => {
+              const clientPosition = (id: string) => {
+                const i = clientOrder.indexOf(id);
+                return i === -1 ? clientOrder.length : i;
+              };
+              const list = [...(filteredGrouped.get(s.key) ?? [])].sort(
+                (a, b) => clientPosition(a.id) - clientPosition(b.id)
+              );
               const isCollapsed = collapsed[s.key] ?? false;
               const boardPageSize = boardPageSizeByStage[s.key] ?? 10;
               const totalPages = Math.max(1, Math.ceil(list.length / boardPageSize));
@@ -669,7 +798,56 @@ export function PipelineClientsPage() {
               const start = (boardPage - 1) * boardPageSize;
               const shown = list.slice(start, start + boardPageSize);
               return (
-                <section key={s.key} className="pipeline-tracker-card" aria-label={`${s.label} column`}>
+                <section
+                  key={s.key}
+                  className={`pipeline-tracker-card${draggedStage === s.key ? " dragging" : ""}${
+                    dropTargetStage === s.key &&
+                    draggedStage !== s.key &&
+                    draggedClient?.stage !== s.key &&
+                    !dropTargetClient
+                      ? " drop-target" : ""
+                  }`}
+                  aria-label={`${s.label} column`}
+                  onDragOver={(e) => {
+                    if (!draggedStage && !draggedClient) return;
+                    e.preventDefault();
+                    setDropTargetStage(s.key);
+                    if (!(e.target as HTMLElement).closest(".pipeline-board-row")) {
+                      setDropTargetClient(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedClient) {
+                      placeClientInList(draggedClient, list);
+                      void moveClientToStage(draggedClient, s.key);
+                      setDraggedClient(null);
+                      setDropTargetClient(null);
+                      setDropTargetStage(null);
+                    } else {
+                      dropStageOn(s.key);
+                    }
+                  }}
+                >
+                  <div className="pipeline-tracker-head-row">
+                  <span
+                    className="pipeline-tracker-grip"
+                    draggable
+                    title="Drag to change position"
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", s.key);
+                      const card = e.currentTarget.closest("section");
+                      if (card) e.dataTransfer.setDragImage(card, 16, 16);
+                      setDraggedStage(s.key);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedStage(null);
+                      setDropTargetStage(null);
+                    }}
+                  >
+                    <GripVertical size={16} aria-hidden="true" />
+                  </span>
                   <button
                     type="button"
                     className="pipeline-tracker-head"
@@ -685,6 +863,7 @@ export function PipelineClientsPage() {
                     <span className="pipeline-tracker-count">{list.length}</span>
                     <span className="pipeline-tracker-toggle">{isCollapsed ? "Show" : "Hide"}</span>
                   </button>
+                  </div>
 
                   {isCollapsed ? null : list.length === 0 ? (
                     <p className="pipeline-empty">No clients yet.</p>
@@ -725,11 +904,46 @@ export function PipelineClientsPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {shown.map((c) => (
-                              <tr key={c.id}>
+                            {shown.map((c, idx) => (
+                              <tr
+                                key={c.id}
+                                className={`pipeline-board-row${
+                                  draggedClient?.id === c.id ? " dragging" : ""
+                                }${
+                                  dropTargetClient?.id === c.id
+                                    ? dropTargetClient.after
+                                      ? " drop-after"
+                                      : " drop-before"
+                                    : ""
+                                }`}
+                                draggable={!busy}
+                                title="Drag to another stage"
+                                onDragStart={(e) => {
+                                  e.dataTransfer.effectAllowed = "move";
+                                  e.dataTransfer.setData("text/plain", c.id);
+                                  setDraggedClient(c);
+                                }}
+                                onDragOver={(e) => {
+                                  if (!draggedClient) return;
+                                  if (draggedClient.id === c.id) {
+                                    setDropTargetClient(null);
+                                    return;
+                                  }
+                                  const box = e.currentTarget.getBoundingClientRect();
+                                  setDropTargetClient({
+                                    id: c.id,
+                                    after: e.clientY > box.top + box.height / 2,
+                                  });
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedClient(null);
+                                  setDropTargetClient(null);
+                                  setDropTargetStage(null);
+                                }}
+                              >
                                 <td className="p-client">
                                   <div className="p-client-name" title={c.clientName}>
-                                    {c.clientName}
+                                    {start + idx + 1}. {c.clientName}
                                   </div>
                                   {c.stage === "deal_lost" && c.lostReason ? (
                                     <div className="p-client-lost" title={c.lostReason}>

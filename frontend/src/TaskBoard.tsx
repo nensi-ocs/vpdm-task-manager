@@ -6,6 +6,7 @@ import { useFollowupClients } from "./useFollowupClients";
 import { useTasks } from "./useTasks";
 import { apiGetBlob } from "./api";
 import { toastApiError, toastSuccess } from "./toast";
+import { useSortableList, type SortableList } from "./useSortableList";
 import {
   VPDM_TRACKS,
 } from "./vpdmCatalog";
@@ -137,6 +138,12 @@ export function TaskBoard() {
     completedClientIds,
     setClientCompletionForDate,
   } = useFollowupClients(user?.id, selectedDateIso);
+  const trackDrag = useSortableList("tracks", user?.id);
+  const clientDrag = useSortableList("followup-clients", user?.id);
+  const taskDrag = useSortableList("tasks", user?.id);
+
+  const orderedTracks = trackDrag.sort(VPDM_TRACKS, (t) => t);
+  const trackDropOptions = { groupIds: [...orderedTracks], axis: "x" as const };
 
   const [modal, setModal] = useState<ModalState>(emptyModal("daily"));
   const visibleTasks = tasks;
@@ -343,6 +350,7 @@ export function TaskBoard() {
 
       <main className="vpm-main">
         <TaskSection
+          taskDrag={taskDrag}
           title={sectionTitle("daily")}
           badge={sectionBadge("daily")}
           frequency="daily"
@@ -362,6 +370,7 @@ export function TaskBoard() {
           }
         />
         <TaskSection
+          taskDrag={taskDrag}
           title={sectionTitle("weekly")}
           badge={sectionBadge("weekly")}
           frequency="weekly"
@@ -381,6 +390,7 @@ export function TaskBoard() {
           }
         />
         <TaskSection
+          taskDrag={taskDrag}
           title={sectionTitle("monthly")}
           badge={sectionBadge("monthly")}
           frequency="monthly"
@@ -400,6 +410,7 @@ export function TaskBoard() {
           }
         />
         <TaskSection
+          taskDrag={taskDrag}
           title={sectionTitle("interval")}
           badge={sectionBadge("interval")}
           frequency="interval"
@@ -419,6 +430,7 @@ export function TaskBoard() {
           }
         />
         <TaskSection
+          taskDrag={taskDrag}
           title={sectionTitle("once")}
           badge={sectionBadge("once")}
           frequency="once"
@@ -446,20 +458,31 @@ export function TaskBoard() {
             </p>
           ) : (
             <div className="tracker-grid">
-              {VPDM_TRACKS.map((track) => {
-                const rows = (followupGrouped.get(track) ?? []).map((r) => ({
+              {orderedTracks.map((track) => {
+                const rows = clientDrag.sort(followupGrouped.get(track) ?? [], (r) => r.id).map((r) => ({
                   id: r.id,
                   client: r.clientName,
                   owner: r.owner ?? "",
                 }));
                 return (
-                  <article key={track} className="tracker-card">
+                  <article
+                    key={track}
+                    className={`tracker-card ${trackDrag.dragClass(track, "x")}`}
+                    {...trackDrag.itemProps(track, trackDropOptions)}
+                  >
                     <h3>{track}</h3>
                     <ul>
-                      {rows.map((entry) => {
+                      {rows.map((entry, idx) => {
                         const checked = completedClientIds.includes(entry.id);
                         return (
-                          <li key={`${track}-${entry.client}`}>
+                          <li
+                            key={`${track}-${entry.client}`}
+                            className={clientDrag.dragClass(entry.id)}
+                            {...clientDrag.itemProps(entry.id, {
+                              group: track,
+                              groupIds: rows.map((r) => r.id),
+                            })}
+                          >
                             <label className={checked ? "done" : ""}>
                               <input
                                 type="checkbox"
@@ -468,7 +491,7 @@ export function TaskBoard() {
                                   void toggleFollowup(entry.id, e.target.checked)
                                 }
                               />
-                              <span>{entry.client}</span>
+                              <span>{idx + 1}. {entry.client}</span>
                               <em>({entry.owner})</em>
                             </label>
                           </li>
@@ -665,6 +688,7 @@ export function TaskBoard() {
 }
 
 type TaskSectionProps = {
+  taskDrag: SortableList;
   title: string;
   badge: string;
   frequency: Frequency;
@@ -682,7 +706,8 @@ function TaskSection({
   title,
   badge,
   frequency,
-  tasks,
+  tasks: unsortedTasks,
+  taskDrag,
   selectedDateIso,
   completedTaskIds,
   completionDatesByTaskId,
@@ -692,6 +717,8 @@ function TaskSection({
   onToggle,
 }: TaskSectionProps) {
   void completedTaskIds;
+  const tasks = taskDrag.sort(unsortedTasks, (t) => String(t.id));
+  const taskDropOptions = { group: frequency, groupIds: tasks.map((t) => String(t.id)) };
   const pageSize = 10;
   const [page, setPage] = useState(1);
 
@@ -746,7 +773,8 @@ function TaskSection({
                   return (
                 <tr
                   key={task.id}
-                  className={done ? "done" : ""}
+                  className={`${done ? "done" : ""} ${taskDrag.dragClass(String(task.id))}`}
+                  {...taskDrag.itemProps(String(task.id), taskDropOptions)}
                 >
                   <td>{startIdx + idx + 1}</td>
                   <td>

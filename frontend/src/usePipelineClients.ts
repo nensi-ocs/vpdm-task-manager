@@ -81,6 +81,16 @@ export function usePipelineClients(userId: string | undefined) {
     return updated;
   }, []);
 
+  const moveClient = useCallback(async (id: string, stage: string) => {
+    const updated = await apiSendJson<PipelineClient>(
+      `/pipeline-clients/${encodeURIComponent(id)}`,
+      "PATCH",
+      { stage }
+    );
+    setClients((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    return updated;
+  }, []);
+
   const markLost = useCallback(async (id: string, lostReason: string) => {
     const updated = await apiSendJson<PipelineClient>(
       `/pipeline-clients/${encodeURIComponent(id)}/mark-lost`,
@@ -118,6 +128,7 @@ export function usePipelineClients(userId: string | undefined) {
     reload,
     addClient,
     advanceClient,
+    moveClient,
     markLost,
     removeClient,
   };
