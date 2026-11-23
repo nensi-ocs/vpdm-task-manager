@@ -20,8 +20,23 @@ model User {
   pipelineClients PipelineClient[]
   leadSources LeadSource[]
   importantClientLeads ImportantClientLead[]
+  listOrders UserListOrder[]
 
   @@map("users")
+}
+
+/// Drag-and-drop order of one list (e.g. "tasks") for one user.
+model UserListOrder {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listKey   String   @map("list_key") @db.VarChar(60)
+  /// Item ids in the order the user arranged them: string[]
+  itemIds   Json     @map("item_ids")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, listKey], map: "uq_user_list_orders_user_key")
+  @@map("user_list_orders")
 }
 
 model Category {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useListOrder } from "../listOrderStore";
 import { usePipelineClients } from "../usePipelineClients";
 import { apiGet, apiSendJson } from "../api";
 import { toastApiError, toastSuccess } from "../toast";
@@ -67,43 +68,9 @@ const STAGE_DETAILS: Record<string, string> = {
   deal_lost: "Client rejected / no response / budget issue. Add reason for analysis.",
 };
 
-const BOARD_ORDER_STORAGE_KEY = "pipeline-board-stage-order";
-
-function loadBoardOrder(): string[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(BOARD_ORDER_STORAGE_KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveBoardOrder(order: string[]) {
-  try {
-    localStorage.setItem(BOARD_ORDER_STORAGE_KEY, JSON.stringify(order));
-  } catch {
-    // The order still applies until the page is reloaded.
-  }
-}
-
-const BOARD_CLIENT_ORDER_STORAGE_KEY = "pipeline-board-client-order";
-
-function loadClientOrder(): string[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(BOARD_CLIENT_ORDER_STORAGE_KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveClientOrder(order: string[]) {
-  try {
-    localStorage.setItem(BOARD_CLIENT_ORDER_STORAGE_KEY, JSON.stringify(order));
-  } catch {
-    // The order still applies until the page is reloaded.
-  }
-}
+/** Browser-only keys used before orders were saved on the server; migrated on first load. */
+const LEGACY_STAGE_ORDER_STORAGE_KEY = "pipeline-board-stage-order";
+const LEGACY_CLIENT_ORDER_STORAGE_KEY = "pipeline-board-client-order";
 
 function isTerminalStage(stageKey: string): boolean {
   return stageKey === "onboarding" || stageKey === "deal_lost";
@@ -147,10 +114,18 @@ export function PipelineClientsPage() {
 
   const [viewMode, setViewMode] = useState<PipelineViewMode>("board");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [boardOrder, setBoardOrder] = useState<string[]>(loadBoardOrder);
+  const [boardOrder, setBoardOrder] = useListOrder(
+    "pipeline-stages",
+    user?.id,
+    LEGACY_STAGE_ORDER_STORAGE_KEY
+  );
   const [draggedStage, setDraggedStage] = useState<string | null>(null);
   const [draggedClient, setDraggedClient] = useState<PipelineClient | null>(null);
-  const [clientOrder, setClientOrder] = useState<string[]>(loadClientOrder);
+  const [clientOrder, setClientOrder] = useListOrder(
+    "pipeline-clients",
+    user?.id,
+    LEGACY_CLIENT_ORDER_STORAGE_KEY
+  );
   const [dropTargetClient, setDropTargetClient] = useState<{ id: string; after: boolean } | null>(
     null
   );
@@ -211,7 +186,6 @@ export function PipelineClientsPage() {
       const next = keys.filter((k) => k !== draggedStage);
       next.splice(keys.indexOf(targetKey), 0, draggedStage);
       setBoardOrder(next);
-      saveBoardOrder(next);
     }
     setDraggedStage(null);
     setDropTargetStage(null);
@@ -502,7 +476,6 @@ export function PipelineClientsPage() {
     ids.splice(insertAt, 0, c.id);
     const next = [...clientOrder.filter((id) => !ids.includes(id)), ...ids];
     setClientOrder(next);
-    saveClientOrder(next);
   }
 
   async function moveClientToStage(c: PipelineClient, stageKey: string) {

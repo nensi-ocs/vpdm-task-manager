@@ -1,11 +1,14 @@
 import "reflect-metadata";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Saved drag-and-drop orders can exceed the 100kb default for large lists.
+  app.useBodyParser("json", { limit: "1mb" });
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({

@@ -10,6 +10,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { TasksModule } from "./tasks/tasks.module";
 import { ExportModule } from "./export/export.module";
 import { LeadsModule } from "./leads/leads.module";
+import { ListOrdersModule } from "./list-orders/list-orders.module";
 import { ImportantClientLeadsModule } from "./important-client-leads/important-client-leads.module";
 
 @Module({
@@ -28,6 +29,7 @@ import { ImportantClientLeadsModule } from "./important-client-leads/important-c
     ExportModule,
     LeadsModule,
     ImportantClientLeadsModule,
+    ListOrdersModule,
   ],
 })
 export class AppModule {}

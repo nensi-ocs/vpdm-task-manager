@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { apiGet, apiSendJson } from "../api";
+import { resetListOrders } from "../listOrderStore";
 import { toastApiError } from "../toast";
 import type { AuthUser } from "./types";
 
@@ -80,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toastApiError(err, "Logout failed");
     } finally {
       setUser(null);
+      resetListOrders();
     }
   }, []);
 

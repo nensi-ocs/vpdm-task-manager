@@ -1,4 +1,5 @@
 import { useCallback, useState, type DragEvent } from "react";
+import { useListOrder } from "./listOrderStore";
 import "./sortable-list.css";
 
 type DropOptions = {
@@ -10,27 +11,9 @@ type DropOptions = {
 
 export type SortableList = ReturnType<typeof useSortableList>;
 
-function loadOrder(storageKey: string): string[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveOrder(storageKey: string, order: string[]) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(order));
-  } catch {
-    // The order still applies until the page is reloaded.
-  }
-}
-
-/** Drag-to-reorder for a list, with the order saved per user in this browser. */
+/** Drag-to-reorder for a list, with the order saved per user on the server. */
 export function useSortableList(listKey: string, userId: string | undefined) {
-  const storageKey = `sortable-order:${userId ?? "anon"}:${listKey}`;
-  const [order, setOrder] = useState<string[]>(() => loadOrder(storageKey));
+  const [order, setOrder] = useListOrder(listKey, userId);
   const [dragged, setDragged] = useState<{ id: string; group?: string } | null>(null);
   const [target, setTarget] = useState<{ id: string; after: boolean } | null>(null);
 
@@ -57,7 +40,6 @@ export function useSortableList(listKey: string, userId: string | undefined) {
     ids.splice(targetIndex === -1 ? ids.length : targetIndex + (target?.after ? 1 : 0), 0, dragged.id);
     const next = [...order.filter((id) => !ids.includes(id)), ...ids];
     setOrder(next);
-    saveOrder(storageKey, next);
     if (dragged.group !== group) onMoveToGroup?.(dragged.id, group ?? "");
     clearDrag();
   }
