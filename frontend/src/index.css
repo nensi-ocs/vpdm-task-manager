@@ -16,9 +16,9 @@
   --panel-bg: #ffffff;
 
   /* Ink */
-  --text: #3b3b3a; /* a shade darker than the logo charcoal, for easier reading */
-  --text-muted: #595958;
-  --text-faint: #777776;
+  --text: #262625; /* darker than the logo charcoal, for easier reading */
+  --text-muted: #474746;
+  --text-faint: #666665;
 
   /* Lines */
   --border: #e2e2e1;
@@ -90,7 +90,7 @@
   --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
 
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.5;
   font-weight: 400;
   color: var(--text);
