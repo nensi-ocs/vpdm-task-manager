@@ -16,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  X,
 } from "lucide-react";
 
 type ViewMode = "week" | "month";
@@ -636,12 +635,6 @@ export function CalendarPage() {
                 autoComplete="off"
               />
             </label>
-            {filtersActive ? (
-              <button type="button" className="btn ghost" onClick={clearFilters}>
-                <X size={15} aria-hidden="true" />
-                Clear filters
-              </button>
-            ) : null}
           </div>
         </div>
       </section>

@@ -111,8 +111,7 @@
   min-width: 0;
 }
 
-.calendar-filter-fields .input,
-.calendar-filter-fields .btn {
+.calendar-filter-fields .input {
   min-height: 2.25rem;
   padding-top: 0.3rem;
   padding-bottom: 0.3rem;
