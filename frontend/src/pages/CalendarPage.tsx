@@ -10,7 +10,7 @@ import {
 } from "../taskSchedule";
 import { formatIsoDayShortMonth, formatIsoMonthYear } from "../dateFormat";
 import "./calendar-page.css";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 
 type ViewMode = "week" | "month";
 
@@ -26,6 +26,18 @@ type CalendarCellEvent = {
   task: Task;
   variant: CalendarEventVariant;
 };
+
+type StatusFilter = "all" | CalendarEventVariant;
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "scheduled", label: "Upcoming" },
+  { key: "completed", label: "Completed" },
+  { key: "missed", label: "Missed" },
+  { key: "carry", label: "Carried forward" },
+];
+
+const NO_CATEGORY = "__none__";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -321,6 +333,71 @@ export function CalendarPage() {
 
   const title = view === "week" ? fmtWeekTitle(fromIso) : fmtMonthTitle(cursorIso);
 
+  // ---- Filters: these only choose which events are shown; the schedule itself is untouched.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+
+  const categoryOptions = useMemo(() => {
+    const names = new Set<string>();
+    let hasUncategorised = false;
+    for (const t of tasks) {
+      if (t.frequency === "daily") continue;
+      const c = (t.category ?? "").trim();
+      if (c) names.add(c);
+      else hasUncategorised = true;
+    }
+    return {
+      names: [...names].sort((a, b) => a.localeCompare(b)),
+      hasUncategorised,
+    };
+  }, [tasks]);
+
+  const searchLower = search.trim().toLowerCase();
+
+  /** Events after the category and search filters, before the status filter. */
+  const matchedByIso = useMemo(() => {
+    if (categoryFilter === "all" && !searchLower) return eventsByIso;
+    const map = new Map<string, CalendarCellEvent[]>();
+    for (const [iso, arr] of eventsByIso) {
+      const kept = arr.filter(({ task: t }) => {
+        const c = (t.category ?? "").trim();
+        if (categoryFilter === NO_CATEGORY ? c !== "" : categoryFilter !== "all" && c !== categoryFilter) {
+          return false;
+        }
+        return !searchLower || t.title.toLowerCase().includes(searchLower);
+      });
+      if (kept.length > 0) map.set(iso, kept);
+    }
+    return map;
+  }, [eventsByIso, categoryFilter, searchLower]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = {
+      all: 0,
+      scheduled: 0,
+      completed: 0,
+      missed: 0,
+      carry: 0,
+    };
+    for (const arr of matchedByIso.values()) {
+      for (const e of arr) {
+        counts.all += 1;
+        counts[e.variant] += 1;
+      }
+    }
+    return counts;
+  }, [matchedByIso]);
+
+  const filtersActive =
+    statusFilter !== "all" || categoryFilter !== "all" || searchLower !== "";
+
+  function clearFilters() {
+    setStatusFilter("all");
+    setCategoryFilter("all");
+    setSearch("");
+  }
+
   function goPrev() {
     if (view === "week") {
       setCursorIso((c) => addDaysIso(c, -7));
@@ -359,7 +436,7 @@ export function CalendarPage() {
         </div>
       </header>
 
-      <header className="calendar-head">
+      <section className="panel calendar-controls" aria-label="Calendar controls">
         <div className="calendar-topbar">
           <div className="calendar-topbar-left">
             <button type="button" className="cal-btn cal-today" onClick={goToday}>
@@ -370,7 +447,7 @@ export function CalendarPage() {
                 type="button"
                 className="cal-btn cal-icon"
                 onClick={goPrev}
-                aria-label="Previous"
+                aria-label={view === "week" ? "Previous week" : "Previous month"}
               >
                 <ChevronLeft size={18} aria-hidden="true" />
               </button>
@@ -378,7 +455,7 @@ export function CalendarPage() {
                 type="button"
                 className="cal-btn cal-icon"
                 onClick={goNext}
-                aria-label="Next"
+                aria-label={view === "week" ? "Next week" : "Next month"}
               >
                 <ChevronRight size={18} aria-hidden="true" />
               </button>
@@ -387,10 +464,11 @@ export function CalendarPage() {
           </div>
 
           <div className="calendar-topbar-right">
-            <div className="segmented">
+            <div className="segmented" role="group" aria-label="Calendar view">
               <button
                 type="button"
                 className={`seg ${view === "week" ? "on" : ""}`}
+                aria-pressed={view === "week"}
                 onClick={() => setView("week")}
               >
                 Week
@@ -398,6 +476,7 @@ export function CalendarPage() {
               <button
                 type="button"
                 className={`seg ${view === "month" ? "on" : ""}`}
+                aria-pressed={view === "month"}
                 onClick={() => setView("month")}
               >
                 Month
@@ -405,25 +484,75 @@ export function CalendarPage() {
             </div>
           </div>
         </div>
-      </header>
 
-      <ul className="calendar-legend" aria-label="Colour key">
-        <li>
-          <i className="lg-completed" aria-hidden="true" />
-          Completed
-        </li>
-        <li>
-          <i className="lg-missed" aria-hidden="true" />
-          Missed
-        </li>
-        <li>
-          <i className="lg-carry" aria-hidden="true" />
-          Carried forward
-        </li>
-      </ul>
+        <div className="calendar-filters">
+          <div className="cal-chips" role="group" aria-label="Show tasks by status">
+            {STATUS_FILTERS.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                className={`cal-chip cal-chip-${key} ${statusFilter === key ? "on" : ""}`}
+                aria-pressed={statusFilter === key}
+                onClick={() => setStatusFilter(key)}
+              >
+                {key === "all" ? null : <i aria-hidden="true" />}
+                {label}
+                <span className="cal-chip-count">{statusCounts[key]}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="calendar-filter-fields">
+            <label className="calendar-filter-search">
+              <Search size={16} aria-hidden="true" />
+              <span className="sr-only">Search tasks</span>
+              <input
+                className="input"
+                type="search"
+                placeholder="Search tasks..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoComplete="off"
+              />
+            </label>
+            <label>
+              <span className="sr-only">Category</span>
+              <select
+                className="input"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="all">All categories</option>
+                {categoryOptions.names.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+                {categoryOptions.hasUncategorised ? (
+                  <option value={NO_CATEGORY}>No category</option>
+                ) : null}
+              </select>
+            </label>
+            {filtersActive ? (
+              <button type="button" className="btn ghost" onClick={clearFilters}>
+                <X size={15} aria-hidden="true" />
+                Clear filters
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       {error ? <div className="calendar-error">{error}</div> : null}
       {loading ? <div className="calendar-loading">Loading tasks…</div> : null}
+      {!loading && filtersActive && statusCounts[statusFilter] === 0 ? (
+        <div className="calendar-loading" role="status">
+          No tasks match these filters in this {view}.{" "}
+          <button type="button" className="calendar-link-btn" onClick={clearFilters}>
+            Clear filters
+          </button>
+        </div>
+      ) : null}
 
       <main className="calendar-main">
         <div className={`calendar-grid ${view}`}>
@@ -438,7 +567,11 @@ export function CalendarPage() {
           const inMonth =
             view === "week" ? true : d.getUTCMonth() === month0 && d.getUTCFullYear() === year;
           const isTodayCell = iso === todayIso;
-          const events = eventsByIso.get(iso) ?? [];
+          const matched = matchedByIso.get(iso) ?? [];
+          const events =
+            statusFilter === "all"
+              ? matched
+              : matched.filter((e) => e.variant === statusFilter);
 
           return (
             <div
