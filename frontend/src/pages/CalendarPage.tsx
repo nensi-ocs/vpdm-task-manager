@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Task } from "../types";
 import { useAuth } from "../auth/AuthContext";
 import { useTasks } from "../useTasks";
@@ -10,7 +10,13 @@ import {
 } from "../taskSchedule";
 import { formatIsoDayShortMonth, formatIsoMonthYear } from "../dateFormat";
 import "./calendar-page.css";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  CalendarCheck,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+} from "lucide-react";
 
 type ViewMode = "week" | "month";
 
@@ -26,6 +32,24 @@ type CalendarCellEvent = {
   task: Task;
   variant: CalendarEventVariant;
 };
+
+type StatusFilter = "all" | CalendarEventVariant;
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "scheduled", label: "Upcoming" },
+  { key: "completed", label: "Completed" },
+  { key: "missed", label: "Missed" },
+  { key: "carry", label: "Carried forward" },
+];
+
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const;
+
+/** Years offered in the month picker, either side of the current year. */
+const PICKER_YEAR_SPAN = 10;
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -321,6 +345,49 @@ export function CalendarPage() {
 
   const title = view === "week" ? fmtWeekTitle(fromIso) : fmtMonthTitle(cursorIso);
 
+  // ---- Filters: these only choose which events are shown; the schedule itself is untouched.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
+
+  const searchLower = search.trim().toLowerCase();
+
+  /** Events after the search filter, before the status filter. */
+  const matchedByIso = useMemo(() => {
+    if (!searchLower) return eventsByIso;
+    const map = new Map<string, CalendarCellEvent[]>();
+    for (const [iso, arr] of eventsByIso) {
+      const kept = arr.filter(({ task: t }) =>
+        t.title.toLowerCase().includes(searchLower)
+      );
+      if (kept.length > 0) map.set(iso, kept);
+    }
+    return map;
+  }, [eventsByIso, searchLower]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = {
+      all: 0,
+      scheduled: 0,
+      completed: 0,
+      missed: 0,
+      carry: 0,
+    };
+    for (const arr of matchedByIso.values()) {
+      for (const e of arr) {
+        counts.all += 1;
+        counts[e.variant] += 1;
+      }
+    }
+    return counts;
+  }, [matchedByIso]);
+
+  const filtersActive = statusFilter !== "all" || searchLower !== "";
+
+  function clearFilters() {
+    setStatusFilter("all");
+    setSearch("");
+  }
+
   function goPrev() {
     if (view === "week") {
       setCursorIso((c) => addDaysIso(c, -7));
@@ -348,6 +415,57 @@ export function CalendarPage() {
   const month0 = isoToUtcMidday(cursorIso).getUTCMonth();
   const year = isoToUtcMidday(cursorIso).getUTCFullYear();
 
+  // ---- Month and year picker (opens from the title)
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(year);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const todayYear = Number(todayIso.slice(0, 4));
+  const todayMonth0 = Number(todayIso.slice(5, 7)) - 1;
+
+  const pickerYears = useMemo(() => {
+    const from = Math.min(todayYear - PICKER_YEAR_SPAN, year, pickerYear);
+    const to = Math.max(todayYear + PICKER_YEAR_SPAN, year, pickerYear);
+    return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  }, [todayYear, year, pickerYear]);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!pickerRef.current?.contains(e.target as Node)) setPickerOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPickerOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [pickerOpen]);
+
+  function togglePicker() {
+    setPickerYear(year);
+    setPickerOpen((v) => !v);
+  }
+
+  function pickMonth(y: number, m0: number) {
+    // Landing on the current month keeps today in view (matters for the week view).
+    const iso =
+      y === todayYear && m0 === todayMonth0
+        ? todayIso
+        : `${String(y).padStart(4, "0")}-${String(m0 + 1).padStart(2, "0")}-01`;
+    setCursorIso(iso);
+    setPickerOpen(false);
+  }
+
+  // "Today" has nothing to do while today is already on screen.
+  const isCurrentPeriod =
+    view === "week"
+      ? todayIso >= fromIso && todayIso <= toIsoInclusive
+      : cursorIso.slice(0, 7) === todayIso.slice(0, 7);
+
+
   return (
     <div className="calendar-page">
       <header className="page-head">
@@ -359,38 +477,118 @@ export function CalendarPage() {
         </div>
       </header>
 
-      <header className="calendar-head">
+      <section className="panel calendar-controls" aria-label="Calendar controls">
         <div className="calendar-topbar">
           <div className="calendar-topbar-left">
-            <button type="button" className="cal-btn cal-today" onClick={goToday}>
+            <button
+              type="button"
+              className="cal-btn cal-today"
+              onClick={goToday}
+              disabled={isCurrentPeriod}
+              title={isCurrentPeriod ? "You are viewing today" : "Go to today"}
+            >
+              <CalendarCheck size={16} aria-hidden="true" />
               Today
             </button>
-            <div className="cal-nav">
-              <button
-                type="button"
-                className="cal-btn cal-icon"
-                onClick={goPrev}
-                aria-label="Previous"
-              >
-                <ChevronLeft size={18} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="cal-btn cal-icon"
-                onClick={goNext}
-                aria-label="Next"
-              >
-                <ChevronRight size={18} aria-hidden="true" />
-              </button>
+          </div>
+
+          <div className="cal-nav">
+            <button
+              type="button"
+              className="cal-icon"
+              onClick={goPrev}
+              aria-label={view === "week" ? "Previous week" : "Previous month"}
+            >
+              <ChevronLeft size={20} aria-hidden="true" />
+            </button>
+            <div className="cal-picker" ref={pickerRef}>
+              <h2 className="calendar-title" aria-live="polite">
+                <button
+                  type="button"
+                  className="cal-title-btn"
+                  aria-haspopup="dialog"
+                  aria-expanded={pickerOpen}
+                  title="Choose a month and year"
+                  onClick={togglePicker}
+                >
+                  {title}
+                  <ChevronDown size={18} aria-hidden="true" />
+                </button>
+              </h2>
+              {pickerOpen ? (
+                <div
+                  className="cal-picker-pop"
+                  role="dialog"
+                  aria-label="Choose a month and year"
+                >
+                  <div className="cal-picker-year">
+                    <button
+                      type="button"
+                      className="cal-icon"
+                      aria-label="Previous year"
+                      onClick={() => setPickerYear((y) => y - 1)}
+                    >
+                      <ChevronLeft size={18} aria-hidden="true" />
+                    </button>
+                    <label>
+                      <span className="sr-only">Year</span>
+                      <select
+                        className="input"
+                        value={pickerYear}
+                        onChange={(e) => setPickerYear(Number(e.target.value))}
+                      >
+                        {pickerYears.map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="cal-icon"
+                      aria-label="Next year"
+                      onClick={() => setPickerYear((y) => y + 1)}
+                    >
+                      <ChevronRight size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="cal-picker-months">
+                    {MONTH_SHORT.map((name, m0) => {
+                      const isShown = pickerYear === year && m0 === month0;
+                      const isNow = pickerYear === todayYear && m0 === todayMonth0;
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          className={`cal-picker-month${isShown ? " on" : ""}${isNow ? " now" : ""}`}
+                          aria-pressed={isShown}
+                          onClick={() => pickMonth(pickerYear, m0)}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
-            <h2 className="calendar-title">{title}</h2>
+            <button
+              type="button"
+              className="cal-icon"
+              onClick={goNext}
+              aria-label={view === "week" ? "Next week" : "Next month"}
+            >
+              <ChevronRight size={20} aria-hidden="true" />
+            </button>
           </div>
 
           <div className="calendar-topbar-right">
-            <div className="segmented">
+            <div className="segmented" role="group" aria-label="Calendar view">
               <button
                 type="button"
                 className={`seg ${view === "week" ? "on" : ""}`}
+                aria-pressed={view === "week"}
                 onClick={() => setView("week")}
               >
                 Week
@@ -398,6 +596,7 @@ export function CalendarPage() {
               <button
                 type="button"
                 className={`seg ${view === "month" ? "on" : ""}`}
+                aria-pressed={view === "month"}
                 onClick={() => setView("month")}
               >
                 Month
@@ -405,25 +604,51 @@ export function CalendarPage() {
             </div>
           </div>
         </div>
-      </header>
 
-      <ul className="calendar-legend" aria-label="Colour key">
-        <li>
-          <i className="lg-completed" aria-hidden="true" />
-          Completed
-        </li>
-        <li>
-          <i className="lg-missed" aria-hidden="true" />
-          Missed
-        </li>
-        <li>
-          <i className="lg-carry" aria-hidden="true" />
-          Carried forward
-        </li>
-      </ul>
+        <div className="calendar-filters">
+          <div className="cal-chips" role="group" aria-label="Show tasks by status">
+            {STATUS_FILTERS.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                className={`cal-chip cal-chip-${key} ${statusFilter === key ? "on" : ""}`}
+                aria-pressed={statusFilter === key}
+                onClick={() => setStatusFilter(key)}
+              >
+                {key === "all" ? null : <i aria-hidden="true" />}
+                {label}
+                <span className="cal-chip-count">{statusCounts[key]}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="calendar-filter-fields">
+            <label className="calendar-filter-search">
+              <Search size={16} aria-hidden="true" />
+              <span className="sr-only">Search tasks</span>
+              <input
+                className="input"
+                type="search"
+                placeholder="Search tasks..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoComplete="off"
+              />
+            </label>
+          </div>
+        </div>
+      </section>
 
       {error ? <div className="calendar-error">{error}</div> : null}
       {loading ? <div className="calendar-loading">Loading tasks…</div> : null}
+      {!loading && filtersActive && statusCounts[statusFilter] === 0 ? (
+        <div className="calendar-loading" role="status">
+          No tasks match these filters in this {view}.{" "}
+          <button type="button" className="calendar-link-btn" onClick={clearFilters}>
+            Clear filters
+          </button>
+        </div>
+      ) : null}
 
       <main className="calendar-main">
         <div className={`calendar-grid ${view}`}>
@@ -438,7 +663,11 @@ export function CalendarPage() {
           const inMonth =
             view === "week" ? true : d.getUTCMonth() === month0 && d.getUTCFullYear() === year;
           const isTodayCell = iso === todayIso;
-          const events = eventsByIso.get(iso) ?? [];
+          const matched = matchedByIso.get(iso) ?? [];
+          const events =
+            statusFilter === "all"
+              ? matched
+              : matched.filter((e) => e.variant === statusFilter);
 
           return (
             <div
