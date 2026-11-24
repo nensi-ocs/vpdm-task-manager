@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: flex-end;
   width: 100%;
-  gap: 0.6rem;
+  gap: 0.5rem;
   margin-top: 0.85rem;
   flex-wrap: wrap;
 }
@@ -11,13 +11,19 @@
 .pagination-pages {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
+  flex-wrap: wrap;
 }
 
-.pagination-btn.active {
-  border-color: transparent;
-  background: var(--accent-soft);
-  color: var(--accent);
+.pagination .btn.sm {
+  min-width: 2rem;
+}
+
+.pagination-btn.active,
+.pagination-btn.active:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .pagination-ellipsis {
@@ -25,3 +31,8 @@
   padding: 0 0.15rem;
 }
 
+@media (max-width: 640px) {
+  .pagination {
+    justify-content: center;
+  }
+}

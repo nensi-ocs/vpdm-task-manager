@@ -7,6 +7,7 @@ import { apiGet, apiSendJson } from "../api";
 import type { FollowupClient, PipelineClient, PipelineStage } from "../types";
 import { VPDM_TRACKS } from "../vpdmCatalog";
 import { PencilLine, Trash2 } from "lucide-react";
+import { formatIsoDateDdMmYyyy } from "../dateFormat";
 import "./leads-page.css";
 
 function fmtYmd(iso: string | null): string {
@@ -397,12 +398,16 @@ export function LeadsPage() {
 
   return (
     <main className="leads-page">
-      <section className="panel leads-intro-panel">
-        <h2 className="leads-title">Leads</h2>
-        <p className="leads-subtitle">
-          View leads by source sheet. Import your monthly XLSX file and manage leads from it.
-        </p>
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Leads</h1>
+          <p className="page-subtitle">
+            View leads by source sheet. Import your monthly XLSX file and manage leads from it.
+          </p>
+        </div>
+      </header>
 
+      <section className="panel leads-intro-panel">
         <div className="leads-intro-actions">
           <label className="leads-import">
             <span className="leads-import-label">Import XLSX</span>
@@ -628,7 +633,9 @@ export function LeadsPage() {
               ) : (
                 shownItems.map((r) => (
                   <tr key={r.id}>
-                    <td className="mono col-date">{fmtYmd(r.leadDate)}</td>
+                    <td className="mono col-date">
+                      {r.leadDate ? formatIsoDateDdMmYyyy(r.leadDate.slice(0, 10)) : "-"}
+                    </td>
                     <td className="col-name" title={cellText(r.fullName)}>
                       <span className="leads-cell strong">{cellText(r.fullName)}</span>
                     </td>

@@ -84,11 +84,16 @@ export function CategoriesPage() {
 
   return (
     <main className="categories-page">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Categories</h1>
+          <p className="page-subtitle">
+            Add categories here and they will appear in the category list when you add a task.
+          </p>
+        </div>
+      </header>
+
       <section className="panel category-manage-panel">
-        <h2 className="category-title">Category Management</h2>
-        <p className="category-subtitle">
-          Add categories here and they will appear in the task modal dropdown.
-        </p>
         <form className="category-add-form" onSubmit={(e) => void onSubmit(e)}>
           <input
             className="input"

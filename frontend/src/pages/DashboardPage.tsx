@@ -209,7 +209,7 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard-page">
-      <header className="dashboard-head">
+      <header className="page-head dashboard-head">
         <div>
           <h1 className="dashboard-title">Dashboard</h1>
           <p className="dashboard-subtitle">
@@ -255,10 +255,13 @@ export function DashboardPage() {
             <div className="metric-value">{incompleteTasks.length}</div>
           </div>
           <div className="metric-card info">
-            <div className="metric-label">Task completion %</div>
+            <div className="metric-label">Tasks completed</div>
             <div className="metric-value">{taskCompletionPct}%</div>
             <div className="metric-subvalue">
               {rawCompletedForDate.length}/{visibleTasks.length}
+            </div>
+            <div className="metric-bar" aria-hidden="true">
+              <span style={{ width: `${Math.min(100, Math.max(0, Number(taskCompletionPct) || 0))}%` }} />
             </div>
           </div>
         </div>
@@ -302,7 +305,7 @@ export function DashboardPage() {
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>✓</th>
+                    <th><span className="sr-only">Done</span></th>
                     <th>Task</th>
                     <th>Scheduled</th>
                     <th>Completed on</th>
@@ -346,7 +349,7 @@ export function DashboardPage() {
                         )}
                       </td>
                       <td>{t.category ?? "-"}</td>
-                      <td className="dash-freq">{t.frequency.toUpperCase()}</td>
+                      <td className="dash-freq">{t.frequency}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -383,7 +386,7 @@ export function DashboardPage() {
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>✓</th>
+                    <th><span className="sr-only">Done</span></th>
                     <th>Task</th>
                     <th>Scheduled</th>
                     <th>Completed on</th>
@@ -423,7 +426,7 @@ export function DashboardPage() {
                         )}
                       </td>
                       <td>{t.category ?? "-"}</td>
-                      <td className="dash-freq">{t.frequency.toUpperCase()}</td>
+                      <td className="dash-freq">{t.frequency}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -448,7 +451,7 @@ export function DashboardPage() {
           Client follow-up
         </h2>
         <p className="dashboard-block-hint">
-          client follow-up details for{" "}
+          Who to follow up with on{" "}
           <strong>{displayDate(selectedDateIso)}</strong>.
         </p>
 
@@ -466,10 +469,13 @@ export function DashboardPage() {
             <div className="metric-value">{followupMetricPending}</div>
           </div>
           <div className="metric-card info">
-            <div className="metric-label">Follow-up completion %</div>
+            <div className="metric-label">Follow-ups completed</div>
             <div className="metric-value">{followupMetricPct}%</div>
             <div className="metric-subvalue">
               {followupMetricDone}/{followupMetricTotal}
+            </div>
+            <div className="metric-bar" aria-hidden="true">
+              <span style={{ width: `${Math.min(100, Math.max(0, Number(followupMetricPct) || 0))}%` }} />
             </div>
           </div>
         </div>

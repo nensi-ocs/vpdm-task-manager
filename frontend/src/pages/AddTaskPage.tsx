@@ -299,12 +299,16 @@ export function AddTaskPage() {
         onConfirm={() => void confirmStopTask()}
         onCancel={cancelStopTask}
       />
-      <section className="panel add-task-panel add-task-form-panel">
-        <h2 className="add-task-title">Add Task</h2>
-        <p className="add-task-subtitle">
-          Create a new task. It will appear in your Task Manager once saved.
-        </p>
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Add Task</h1>
+          <p className="page-subtitle">
+            Create a new task. It will appear in Manage Tasks once saved.
+          </p>
+        </div>
+      </header>
 
+      <section className="panel add-task-panel add-task-form-panel">
         <form className="add-task-form" onSubmit={(e) => void onSubmit(e)}>
           <label className="field">
             <span className="label">Task Name</span>

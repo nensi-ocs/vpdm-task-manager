@@ -158,6 +158,7 @@ export function normalizeTaskImport(x: Record<string, unknown>): Task {
           : null,
     updatedAt:
       typeof x.updatedAt === "string" ? (x.updatedAt as string) : (x.createdAt as string),
+    vpdmArea: x.vpdmArea === "comments" ? "comments" : "main",
     category: typeof x.category === "string" ? x.category : null,
   };
 }

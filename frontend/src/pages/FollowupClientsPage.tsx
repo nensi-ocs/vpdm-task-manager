@@ -126,11 +126,16 @@ export function FollowupClientsPage() {
 
   return (
     <main className="followup-page">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Client Followup</h1>
+          <p className="page-subtitle">
+            Add clients under Amazon, Flipkart & Meta followup tracks. Total clients: {total}
+          </p>
+        </div>
+      </header>
+
       <section className="panel followup-intro-panel">
-        <h2 className="followup-title">Client Followup Details</h2>
-        <p className="followup-subtitle">
-          Add clients under Amazon, Flipkart & Meta followup tracks. Total clients: {total}
-        </p>
         <form onSubmit={(e) => void onSubmit(e)} className="followup-add-form">
           <select className="input" value={track} onChange={(e) => setTrack(e.target.value)}>
             {VPDM_TRACKS.map((t) => (
@@ -206,7 +211,7 @@ export function FollowupClientsPage() {
                             {idx + 1}. {c.clientName}
                           </span>
                           <span className="followup-client-owner">
-                            {c.owner ? `(${c.owner})` : "(-)"}
+                            {c.owner ?? ""}
                           </span>
                           <button
                             type="button"

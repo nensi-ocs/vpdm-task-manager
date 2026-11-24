@@ -1,133 +1,488 @@
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 248px minmax(0, 1fr);
+  /* One row exactly as tall as the window: without this the row grows with the
+     page content and the whole frame (sidebar, top bar) can be scrolled away. */
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  overflow: clip;
+  transition: grid-template-columns 0.2s ease;
 }
 
+/* ---------- Sidebar ---------- */
+
 .app-sidebar {
-  border-right: 1px solid var(--border);
-  background: #101727;
-  color: #d8deea;
+  background: var(--side-bg);
+  color: var(--side-text);
   display: flex;
   flex-direction: column;
-  padding: 1rem 0.8rem;
+  min-height: 0;
+  height: 100%;
 }
 
 .app-brand {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  font-size: 1.35rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: #fff;
-  margin: 0.1rem 0.3rem 1rem;
+  gap: 0.7rem;
+  height: var(--topbar-h);
+  flex: 0 0 auto;
+  padding: 0 1.1rem;
+  border-bottom: 1px solid var(--side-line);
+}
+
+.app-brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
 }
 
 .app-brand-logo {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
   display: block;
+  object-fit: contain;
+}
+
+.app-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.app-brand-text strong {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+}
+
+.app-brand-text small {
+  font-size: 0.76rem;
+  color: var(--side-text);
+}
+
+.app-sidebar-close {
+  display: none;
+  margin-left: auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--side-line);
+  background: transparent;
+  color: var(--side-text-strong);
+  align-items: center;
+  justify-content: center;
 }
 
 .app-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 0.7rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 1.05rem;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
-.app-nav-parent {
-  width: 100%;
-  text-align: left;
-  color: #c8d0df;
-  background: transparent;
-  border: none;
-  padding: 0.55rem 0.65rem;
-  border-radius: 8px;
+.app-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-nav-heading {
+  margin: 0 0 0.3rem;
+  padding: 0 0.65rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  font-size: 0.92rem;
-  cursor: pointer;
-}
-
-.app-nav-parent.on,
-.app-nav-parent:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.app-subnav {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding-left: 0.55rem;
-}
-
-.app-subnav a {
-  padding: 0.5rem 0.6rem;
-  font-size: 0.9rem;
+  color: var(--side-muted);
 }
 
 .app-nav a {
-  color: #c8d0df;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--side-text);
   text-decoration: none;
   padding: 0.55rem 0.65rem;
   border-radius: 8px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.92rem;
+  line-height: 1.25;
+  transition: background 0.15s, color 0.15s;
 }
 
-.app-nav a.on,
+.app-nav a svg {
+  flex: 0 0 auto;
+  opacity: 0.8;
+}
+
 .app-nav a:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--side-hover);
+  color: var(--side-text-strong);
+  text-decoration: none;
 }
 
-.app-content {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+.app-nav a.on {
+  background: var(--side-active);
+  color: var(--side-text-strong);
+  font-weight: 600;
 }
 
-.app-body {
-  flex: 1;
-  overflow: auto;
-  min-width: 0;
+.app-nav a.on svg {
+  opacity: 1;
+  color: var(--side-marker);
 }
+
+/* Marigold marker shows where you are */
+.app-nav a.on::before {
+  content: "";
+  position: absolute;
+  left: -0.7rem;
+  top: 0.45rem;
+  bottom: 0.45rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--side-marker);
+}
+
+.app-nav a:focus-visible,
+.app-sidebar-close:focus-visible {
+  outline: 2px solid var(--side-marker);
+  outline-offset: 1px;
+}
+
+/* ---------- Top navbar ---------- */
 
 .app-topbar {
-  height: 56px;
-  border-bottom: 1px solid var(--border);
-  background: #fff;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.55rem;
-  padding: 0 1rem;
+  gap: 0.75rem;
+  height: var(--topbar-h);
+  flex: 0 0 auto;
+  padding: 0 var(--page-pad-x);
+  padding-right: max(var(--page-pad-x), env(safe-area-inset-right, 0px));
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
 }
 
 .menu-trigger {
   display: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  place-items: center;
+  flex: 0 0 auto;
 }
 
-.app-topbar-user {
-  max-width: min(420px, 40vw);
+.sidebar-toggle {
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-left: -0.4rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebar-toggle:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.menu-trigger:hover {
+  background: var(--bg-subtle);
+}
+
+/* Where you are: quiet, so it does not compete with the page heading below */
+.app-topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
   white-space: nowrap;
+  font-size: 0.88rem;
+}
+
+.app-topbar-group {
+  color: var(--text-faint);
+}
+
+.app-topbar-group::after {
+  content: "/";
+  margin-left: 0.5rem;
+  color: var(--border-strong);
+}
+
+.app-topbar-title strong {
+  font-weight: 600;
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.84rem;
-  color: var(--text-muted);
-  background: #f7f9fc;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.34rem 0.7rem;
 }
 
-@media (max-width: 860px) {
+.app-user {
+  position: relative;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.app-user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.3rem 0.5rem 0.3rem 0.3rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.app-user-trigger:hover,
+.app-user-trigger[aria-expanded="true"] {
+  background: var(--bg-subtle);
+  border-color: var(--border);
+}
+
+.app-user-chevron {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  transition: transform 0.15s;
+}
+
+.app-user-trigger[aria-expanded="true"] .app-user-chevron {
+  transform: rotate(180deg);
+}
+
+.app-user-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 45;
+  min-width: 14rem;
+  max-width: min(20rem, calc(100vw - 1.5rem));
+  padding: 0.35rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  animation: user-menu-in 0.14s ease-out;
+}
+
+@keyframes user-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.app-user-menu-head {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.65rem 0.6rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--row-line);
+  line-height: 1.3;
+}
+
+.app-user-menu-head strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.app-user-menu-head small {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.app-user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+}
+
+.app-user-menu-item:hover {
+  background: var(--bg-subtle);
+  text-decoration: none;
+}
+
+.app-user-menu-item svg {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.app-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--accent-hover);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.app-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 16rem;
+  line-height: 1.25;
+}
+
+.app-user-text strong,
+.app-user-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-user-text strong {
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.app-user-text small {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Content ---------- */
+
+.app-content {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  overflow: clip;
+}
+
+.app-body {
+  /* Positioned, so visually-hidden (absolute) labels inside pages stay inside this
+     scroll area instead of stretching the document and letting the frame scroll away. */
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1 0 auto;
+  min-width: 0;
+}
+
+.app-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  padding: 0.85rem var(--page-pad-x);
+  padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+/* ---------- Collapsed sidebar: icons only (desktop) ---------- */
+
+@media (min-width: 901px) {
+  .app-shell.collapsed {
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .app-shell.collapsed .app-sidebar {
+    overflow: hidden;
+  }
+
+  .app-shell.collapsed .app-brand {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .app-shell.collapsed .app-brand-text,
+  .app-shell.collapsed .app-nav a span {
+    display: none;
+  }
+
+  .app-shell.collapsed .app-nav {
+    padding: 0.75rem 0.7rem 1rem;
+    gap: 0.5rem;
+  }
+
+  /* Group names give way to a thin rule between groups */
+  .app-shell.collapsed .app-nav-heading {
+    height: 1px;
+    margin: 0 0.5rem 0.5rem;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+    background: var(--side-line);
+  }
+
+  .app-shell.collapsed .app-nav-group:first-child .app-nav-heading {
+    display: none;
+  }
+
+  .app-shell.collapsed .app-nav a {
+    justify-content: center;
+    padding: 0.65rem 0;
+  }
+
+  .app-shell.collapsed .app-nav a svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+@media (max-width: 900px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-sidebar {
@@ -135,45 +490,63 @@
     left: 0;
     top: 0;
     bottom: 0;
-    width: min(84vw, 280px);
-    z-index: 30;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom: none;
+    width: min(86vw, 290px);
+    z-index: 40;
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
+    transition: transform 0.22s ease;
+    visibility: hidden;
   }
 
   .app-sidebar.open {
     transform: translateX(0);
+    visibility: visible;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.35);
+  }
+
+  .app-sidebar-close {
+    display: inline-flex;
   }
 
   .app-sidebar-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 20;
+    z-index: 30;
     border: none;
-    background: rgba(11, 16, 31, 0.42);
+    background: rgba(40, 40, 40, 0.5);
   }
 
   .app-topbar {
-    justify-content: flex-start;
-    gap: 0.45rem;
-    padding: 0 0.7rem;
-    display: flex;
+    padding: 0 0.75rem;
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    gap: 0.6rem;
+  }
+
+  .app-topbar-title strong {
+    font-family: var(--font-display);
+    font-size: 1.02rem;
+    color: var(--text);
   }
 
   .menu-trigger {
-    display: inline-flex;
-    min-width: 2.1rem;
-    padding: 0.35rem 0.45rem;
+    display: grid;
   }
 
-  .app-topbar-user {
-    margin-left: auto;
-    max-width: min(165px, 45vw);
+  .sidebar-toggle {
+    display: none;
   }
 
-  .app-shell {
-    height: 100vh;
+  .app-topbar-group,
+  .app-user-text,
+  .app-user-chevron {
+    display: none;
+  }
+
+  .app-user-trigger {
+    padding: 0.2rem;
+  }
+
+  .app-footer {
+    justify-content: center;
+    text-align: center;
   }
 }

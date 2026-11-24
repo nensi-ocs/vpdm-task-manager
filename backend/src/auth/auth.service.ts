@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -7,8 +8,10 @@ import { JwtService } from "@nestjs/jwt";
 import { Prisma } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../prisma/prisma.service";
+import type { ChangePasswordDto } from "./dto/change-password.dto";
 import type { LoginDto } from "./dto/login.dto";
 import type { RegisterDto } from "./dto/register.dto";
+import type { UpdateProfileDto } from "./dto/update-profile.dto";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -89,6 +92,38 @@ export class AuthService {
       where: { id },
       select: { id: true, email: true, firstName: true, lastName: true },
     });
+  }
+
+  async updateProfile(id: string, dto: UpdateProfileDto): Promise<SafeUser> {
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        firstName: dto.firstName.trim(),
+        lastName: dto.lastName.trim(),
+      },
+      select: { id: true, email: true, firstName: true, lastName: true },
+    });
+  }
+
+  async changePassword(id: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { passwordHash: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    const ok = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!ok) {
+      throw new BadRequestException("Current password is incorrect");
+    }
+    if (dto.newPassword === dto.currentPassword) {
+      throw new BadRequestException(
+        "New password must be different from the current password"
+      );
+    }
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.prisma.user.update({ where: { id }, data: { passwordHash } });
   }
 
   private signToken(sub: string, email: string): string {

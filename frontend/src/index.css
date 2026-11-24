@@ -1,49 +1,96 @@
+/* ==========================================================================
+   VPDM Task Manager — design system
+   Colours come from the VPDM logo: charcoal (#505050) and teal (#3489a0).
+   Amber is kept only for "pending" states.
+   ========================================================================== */
+
 :root {
   color-scheme: light;
 
-  --bg: #e9edf7;
+  /* Surfaces */
+  --bg: #f4f4f4;
   --bg-elevated: #ffffff;
-  --bg-input: #f4f6fc;
-  --border: rgba(20, 30, 60, 0.1);
-  --text: #12172a;
-  --text-muted: #5c6478;
-  --accent: #3d5afe;
-  --accent-2: #7c4dff;
-  --accent-hover: #2d4ae8;
-  --accent-soft: rgba(61, 90, 254, 0.14);
-  --success: #059669;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --radius: 14px;
-  --radius-sm: 10px;
-  --shadow: 0 1px 3px rgba(20, 30, 60, 0.06),
-    0 12px 40px -12px rgba(20, 30, 60, 0.12);
-  --shadow-card: 0 2px 8px rgba(20, 30, 60, 0.05),
-    0 16px 48px -16px rgba(61, 90, 254, 0.12);
+  --bg-subtle: #f9f9f9;
+  --bg-sunken: #ebebeb;
+  --bg-input: #ffffff;
+  --panel-bg: #ffffff;
 
-  --header-bg: rgba(255, 255, 255, 0.82);
-  --task-card-bg: #fbfcff;
-  --btn-secondary-bg: #eef1f8;
-  --btn-secondary-hover: #e2e7f3;
-  --segment-hover: rgba(20, 30, 60, 0.05);
-  --pill-high-bg: #fee2e2;
-  --pill-high-text: #b91c1c;
-  --pill-medium-bg: #fef3c7;
-  --pill-medium-text: #b45309;
-  --pill-low-bg: #d1fae5;
-  --pill-low-text: #047857;
-  --error-bg: #fef2f2;
-  --error-border: rgba(220, 38, 38, 0.25);
-  --gradient-blob: rgba(99, 102, 241, 0.18);
-  --gradient-blob-2: rgba(124, 77, 255, 0.12);
+  /* Ink */
+  --text: #50504f;
+  --text-muted: #6b6b6a;
+  --text-faint: #8a8a89;
 
-  /* Scrollbars: app body, dashboard/add-task/task-board tables, pipeline board strip, task modal
-     (categories + pipeline Clients strip: themed in their page CSS for correct lazy-load order) */
-  --scrollbar-thumb: rgba(92, 100, 126, 0.4);
-  --scrollbar-thumb-hover: rgba(72, 80, 108, 0.55);
-  --scrollbar-track: rgba(241, 245, 249, 0.65);
+  /* Lines */
+  --border: #e2e2e1;
+  --border-strong: #cbcbca;
+  --row-line: #eeeeed;
 
-  font-family: "DM Sans", system-ui, sans-serif;
+  /* Brand */
+  --accent: #3489a0;
+  --accent-hover: #2b7489;
+  --accent-2: #3489a0;
+  --accent-soft: rgba(52, 137, 160, 0.24);
+  --accent-tint: #e6f1f4;
+  --brand: #3489a0; /* the logo teal, used for markers and highlights */
+  --charcoal: #50504f; /* the logo charcoal, used for text */
+  --brand-soft: rgba(52, 137, 160, 0.28);
+  --marigold: #f0a818;
+  --marigold-tint: #fdf3dc;
+  --marigold-ink: #8a5a00;
+
+  /* Status */
+  --success: #1c8757;
+  --success-tint: #e3f4ea;
+  --success-ink: #14633f;
+  --warning: #b86e00;
+  --danger: #c2362b;
+  --danger-tint: #fcebe9;
+  --danger-ink: #8f2219;
+  --info: #5b5fc7;
+  --info-tint: #ecedfb;
+  --info-ink: #3d3f99;
+
+  --error-bg: var(--danger-tint);
+  --error-border: rgba(194, 54, 43, 0.3);
+  --error-text: var(--danger-ink);
+
+  /* Sidebar */
+  --side-bg: #3489a0; /* the logo teal */
+  --side-line: rgba(255, 255, 255, 0.22);
+  --side-text: #ffffff;
+  --side-text-strong: #ffffff;
+  --side-muted: rgba(255, 255, 255, 0.82);
+  --side-marker: #ffffff;
+  --side-hover: rgba(255, 255, 255, 0.12);
+  --side-active: rgba(255, 255, 255, 0.22);
+  --topbar-h: 60px;
+
+  /* Shape */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgba(80, 80, 79, 0.05);
+  --shadow-card: 0 1px 2px rgba(80, 80, 79, 0.06),
+    0 18px 44px -18px rgba(80, 80, 79, 0.28);
+  --focus-ring: 0 0 0 3px var(--accent-soft);
+
+  /* Layout */
+  --page-pad-x: clamp(0.85rem, 2.4vw, 1.75rem);
+  --page-pad-y: clamp(1rem, 2vw, 1.5rem);
+
+  /* Legacy aliases kept for older rules */
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-hover: var(--bg-subtle);
+  --segment-hover: rgba(80, 80, 79, 0.06);
+
+  --scrollbar-thumb: rgba(107, 107, 106, 0.38);
+  --scrollbar-thumb-hover: rgba(107, 107, 106, 0.6);
+  --scrollbar-track: transparent;
+
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
+
+  font-family: var(--font-body);
+  font-size: 15px;
   line-height: 1.5;
   font-weight: 400;
   color: var(--text);
@@ -62,63 +109,52 @@
 body {
   margin: 0;
   min-height: 100vh;
+  background: var(--bg);
 }
 
 #root {
   min-height: 100vh;
 }
 
-.app-body {
-  scrollbar-gutter: stable;
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--text);
 }
 
-.app-body,
-.dashboard-table-wrap,
-.task-board .task-table-wrap,
-.task-board .modal-backdrop,
-.add-task-table-wrap,
-.pipeline-board-table-wrap {
+/* Scrollbars — every scrolling region in the app */
+* {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-.app-body::-webkit-scrollbar,
-.dashboard-table-wrap::-webkit-scrollbar,
-.task-board .task-table-wrap::-webkit-scrollbar,
-.task-board .modal-backdrop::-webkit-scrollbar,
-.add-task-table-wrap::-webkit-scrollbar,
-.pipeline-board-table-wrap::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
 }
 
-.app-body::-webkit-scrollbar-track,
-.dashboard-table-wrap::-webkit-scrollbar-track,
-.task-board .task-table-wrap::-webkit-scrollbar-track,
-.task-board .modal-backdrop::-webkit-scrollbar-track,
-.add-task-table-wrap::-webkit-scrollbar-track,
-.pipeline-board-table-wrap::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-  border-radius: 999px;
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.app-body::-webkit-scrollbar-thumb,
-.dashboard-table-wrap::-webkit-scrollbar-thumb,
-.task-board .task-table-wrap::-webkit-scrollbar-thumb,
-.task-board .modal-backdrop::-webkit-scrollbar-thumb,
-.add-task-table-wrap::-webkit-scrollbar-thumb,
-.pipeline-board-table-wrap::-webkit-scrollbar-thumb {
+*::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-.app-body::-webkit-scrollbar-thumb:hover,
-.dashboard-table-wrap::-webkit-scrollbar-thumb:hover,
-.task-board .task-table-wrap::-webkit-scrollbar-thumb:hover,
-.task-board .modal-backdrop::-webkit-scrollbar-thumb:hover,
-.add-task-table-wrap::-webkit-scrollbar-thumb:hover,
-.pipeline-board-table-wrap::-webkit-scrollbar-thumb:hover {
+*::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+.app-body {
+  scrollbar-gutter: stable;
 }
 
 button,
@@ -133,102 +169,177 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 a {
-  color: var(--accent);
+  color: var(--accent-hover);
   text-decoration: none;
+  font-weight: 600;
 }
 
 a:hover {
   text-decoration: underline;
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+/* ---------- Panel ---------- */
+
 .panel {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1.25rem 1.35rem;
+  padding: 1.15rem 1.25rem;
   box-shadow: var(--shadow);
 }
 
-@media (max-width: 768px) {
-  .panel {
-    padding: 0.95rem;
-    border-radius: 12px;
-  }
-
-  .btn {
-    min-height: 36px;
-  }
-}
+/* ---------- Form fields ---------- */
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .label {
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
 .input {
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   padding: 0.55rem 0.75rem;
+  min-height: 2.5rem;
   outline: none;
+  max-width: 100%;
+  color: var(--text);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+textarea.input {
+  min-height: 5rem;
+  resize: vertical;
 }
+
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+.input:hover {
+  border-color: #b3b3b2;
+}
+
+.input:focus,
+.input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+select.input {
+  appearance: none;
+  padding-right: 2.1rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6763' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  cursor: pointer;
+}
+
+.input.sm {
+  min-height: 2rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+input[type="file"].input {
+  padding: 0.35rem 0.5rem;
+  background: var(--bg-subtle);
+  border-style: dashed;
+}
+
+input[type="file"].input::file-selector-button {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-right: 0.75rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* ---------- Buttons ---------- */
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--btn-secondary-bg);
-  padding: 0.5rem 1rem;
-  font-weight: 500;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  padding: 0.5rem 0.95rem;
+  min-height: 2.5rem;
+  font-weight: 600;
   font-size: 0.9rem;
+  line-height: 1.2;
   color: var(--text);
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.btn:hover {
-  background: var(--btn-secondary-hover);
-}
-
-.btn:active {
-  transform: scale(0.98);
+.btn:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  border-color: #b3b3b2;
 }
 
 .btn.primary {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
-  border-color: transparent;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(61, 90, 254, 0.35);
 }
 
-.btn.primary:hover {
-  filter: brightness(1.05);
-  box-shadow: 0 6px 20px rgba(61, 90, 254, 0.4);
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .btn.ghost {
   background: transparent;
+  border-color: var(--border);
 }
 
-.btn.ghost:hover {
+.btn.ghost:hover:not(:disabled) {
   background: var(--segment-hover);
+  border-color: var(--border-strong);
 }
 
 .btn.sm {
-  padding: 0.35rem 0.65rem;
-  font-size: 0.8rem;
+  padding: 0.3rem 0.65rem;
+  min-height: 2rem;
+  font-size: 0.82rem;
 }
 
 .btn.icon {
@@ -238,21 +349,37 @@ a:hover {
 }
 
 .table-icon-btn {
-  min-width: 2.2rem;
-  padding: 0.38rem 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  min-width: 2rem;
+  padding: 0.3rem 0.45rem;
 }
 
-.table-icon-btn svg {
+.table-icon-btn svg,
+.btn svg {
   display: block;
+  flex: 0 0 auto;
 }
 
-.btn.danger:hover {
-  border-color: rgba(220, 38, 38, 0.35);
+.btn.danger {
   color: var(--danger);
-  background: var(--error-bg);
+}
+
+.btn.danger:hover:not(:disabled) {
+  border-color: var(--error-border);
+  color: var(--danger-ink);
+  background: var(--danger-tint);
+}
+
+/* A solid destructive confirm button (not ghost) */
+.btn.danger:not(.ghost) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.btn.danger:not(.ghost):hover:not(:disabled) {
+  background: var(--danger-ink);
+  border-color: var(--danger-ink);
+  color: #fff;
 }
 
 .sr-only {
@@ -265,4 +392,50 @@ a:hover {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  .panel {
+    padding: 0.95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Toasts ---------- */
+
+/* On body, not :root, so these win over the library's own :root defaults */
+body {
+  --toastify-color-success: var(--success);
+  --toastify-color-error: var(--danger);
+  --toastify-color-warning: var(--marigold);
+  --toastify-color-info: var(--accent);
+  --toastify-color-progress-light: var(--accent);
+  --toastify-text-color-light: var(--text);
+  --toastify-font-family: var(--font-body);
+  --toastify-toast-bd-radius: 10px;
+}
+
+.Toastify__toast {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  font-size: 0.9rem;
+}
+
+/* ---------- Session check ---------- */
+
+.auth-page > p {
+  margin: 0;
+  font-size: 0.95rem;
 }
