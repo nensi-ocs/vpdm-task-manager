@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Task } from "../types";
 import { useAuth } from "../auth/AuthContext";
 import { useTasks } from "../useTasks";
@@ -10,7 +10,14 @@ import {
 } from "../taskSchedule";
 import { formatIsoDayShortMonth, formatIsoMonthYear } from "../dateFormat";
 import "./calendar-page.css";
-import { CalendarCheck, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import {
+  CalendarCheck,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  X,
+} from "lucide-react";
 
 type ViewMode = "week" | "month";
 
@@ -38,6 +45,14 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
 ];
 
 const NO_CATEGORY = "__none__";
+
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+] as const;
+
+/** Years offered in the month picker, either side of the current year. */
+const PICKER_YEAR_SPAN = 10;
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -422,14 +437,59 @@ export function CalendarPage() {
     setCursorIso(todayIso);
   }
 
+  const month0 = isoToUtcMidday(cursorIso).getUTCMonth();
+  const year = isoToUtcMidday(cursorIso).getUTCFullYear();
+
+  // ---- Month and year picker (opens from the title)
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(year);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const todayYear = Number(todayIso.slice(0, 4));
+  const todayMonth0 = Number(todayIso.slice(5, 7)) - 1;
+
+  const pickerYears = useMemo(() => {
+    const from = Math.min(todayYear - PICKER_YEAR_SPAN, year, pickerYear);
+    const to = Math.max(todayYear + PICKER_YEAR_SPAN, year, pickerYear);
+    return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  }, [todayYear, year, pickerYear]);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!pickerRef.current?.contains(e.target as Node)) setPickerOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPickerOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [pickerOpen]);
+
+  function togglePicker() {
+    setPickerYear(year);
+    setPickerOpen((v) => !v);
+  }
+
+  function pickMonth(y: number, m0: number) {
+    // Landing on the current month keeps today in view (matters for the week view).
+    const iso =
+      y === todayYear && m0 === todayMonth0
+        ? todayIso
+        : `${String(y).padStart(4, "0")}-${String(m0 + 1).padStart(2, "0")}-01`;
+    setCursorIso(iso);
+    setPickerOpen(false);
+  }
+
   // "Today" has nothing to do while today is already on screen.
   const isCurrentPeriod =
     view === "week"
       ? todayIso >= fromIso && todayIso <= toIsoInclusive
       : cursorIso.slice(0, 7) === todayIso.slice(0, 7);
 
-  const month0 = isoToUtcMidday(cursorIso).getUTCMonth();
-  const year = isoToUtcMidday(cursorIso).getUTCFullYear();
 
   return (
     <div className="calendar-page">
@@ -466,9 +526,78 @@ export function CalendarPage() {
             >
               <ChevronLeft size={20} aria-hidden="true" />
             </button>
-            <h2 className="calendar-title" aria-live="polite">
-              {title}
-            </h2>
+            <div className="cal-picker" ref={pickerRef}>
+              <h2 className="calendar-title" aria-live="polite">
+                <button
+                  type="button"
+                  className="cal-title-btn"
+                  aria-haspopup="dialog"
+                  aria-expanded={pickerOpen}
+                  title="Choose a month and year"
+                  onClick={togglePicker}
+                >
+                  {title}
+                  <ChevronDown size={18} aria-hidden="true" />
+                </button>
+              </h2>
+              {pickerOpen ? (
+                <div
+                  className="cal-picker-pop"
+                  role="dialog"
+                  aria-label="Choose a month and year"
+                >
+                  <div className="cal-picker-year">
+                    <button
+                      type="button"
+                      className="cal-icon"
+                      aria-label="Previous year"
+                      onClick={() => setPickerYear((y) => y - 1)}
+                    >
+                      <ChevronLeft size={18} aria-hidden="true" />
+                    </button>
+                    <label>
+                      <span className="sr-only">Year</span>
+                      <select
+                        className="input"
+                        value={pickerYear}
+                        onChange={(e) => setPickerYear(Number(e.target.value))}
+                      >
+                        {pickerYears.map((y) => (
+                          <option key={y} value={y}>
+                            {y}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="cal-icon"
+                      aria-label="Next year"
+                      onClick={() => setPickerYear((y) => y + 1)}
+                    >
+                      <ChevronRight size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="cal-picker-months">
+                    {MONTH_SHORT.map((name, m0) => {
+                      const isShown = pickerYear === year && m0 === month0;
+                      const isNow = pickerYear === todayYear && m0 === todayMonth0;
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          className={`cal-picker-month${isShown ? " on" : ""}${isNow ? " now" : ""}`}
+                          aria-pressed={isShown}
+                          onClick={() => pickMonth(pickerYear, m0)}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               className="cal-icon"
