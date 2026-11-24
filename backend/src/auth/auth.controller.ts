@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Res,
   UnauthorizedException,
@@ -10,8 +11,10 @@ import {
 import { AuthGuard } from "@nestjs/passport";
 import type { Response } from "express";
 import { AuthService } from "./auth.service";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
 import type { RequestUser } from "./jwt.strategy";
 import { CurrentUser } from "./current-user.decorator";
 
@@ -70,5 +73,25 @@ export class AuthController {
       throw new UnauthorizedException();
     }
     return { user: fresh };
+  }
+
+  @Patch("profile")
+  @UseGuards(AuthGuard("jwt"))
+  async updateProfile(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: UpdateProfileDto
+  ) {
+    const updated = await this.auth.updateProfile(user.userId, dto);
+    return { user: updated };
+  }
+
+  @Post("change-password")
+  @UseGuards(AuthGuard("jwt"))
+  async changePassword(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: ChangePasswordDto
+  ) {
+    await this.auth.changePassword(user.userId, dto);
+    return { ok: true };
   }
 }

@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { toastApiError, toastSuccess } from "../toast";
+import { AuthAside } from "./AuthAside";
+import { PasswordInput } from "../components/PasswordInput";
 import "./auth-pages.css";
 
 export function RegisterPage() {
@@ -48,13 +50,12 @@ export function RegisterPage() {
 
   return (
     <div className="auth-page">
+      <div className="auth-shell">
+      <AuthAside />
       <div className="auth-card panel">
         <div className="auth-brand">
-          <span className="brand-mark" aria-hidden />
-          <div>
-            <h1 className="auth-title">Create account</h1>
-            <p className="auth-sub">VPDM Task Managet</p>
-          </div>
+          <h1 className="auth-title">Create account</h1>
+          <p className="auth-sub">Set up your VPDM Task Manager account.</p>
         </div>
         <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
           {error ? (
@@ -100,24 +101,22 @@ export function RegisterPage() {
           </label>
           <label className="field">
             <span className="label">Password</span>
-            <input
-              className="input"
-              type="password"
-              autoComplete="new-password"
+            <PasswordInput
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              onChange={setPassword}
+              autoComplete="new-password"
               minLength={8}
             />
             <span className="hint">At least 8 characters</span>
           </label>
           <button type="submit" className="btn primary auth-submit" disabled={busy}>
-            {busy ? "Creating..." : "Register"}
+            {busy ? "Creating account..." : "Create account"}
           </button>
         </form>
         <p className="auth-footer">
           Already have an account? <Link to="/login">Sign in</Link>
         </p>
+      </div>
       </div>
     </div>
   );

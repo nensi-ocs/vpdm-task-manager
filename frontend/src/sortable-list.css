@@ -7,23 +7,23 @@
 }
 
 .sortable-dragging {
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 li.sortable-drop-before-y,
 tr.sortable-drop-before-y > td {
-  box-shadow: inset 0 3px 0 var(--accent, #5b5bf6);
+  box-shadow: inset 0 3px 0 var(--brand);
 }
 
 li.sortable-drop-after-y,
 tr.sortable-drop-after-y > td {
-  box-shadow: inset 0 -3px 0 var(--accent, #5b5bf6);
+  box-shadow: inset 0 -3px 0 var(--brand);
 }
 
 .sortable-drop-before-x {
-  box-shadow: inset 4px 0 0 var(--accent, #5b5bf6);
+  box-shadow: inset 4px 0 0 var(--brand);
 }
 
 .sortable-drop-after-x {
-  box-shadow: inset -4px 0 0 var(--accent, #5b5bf6);
+  box-shadow: inset -4px 0 0 var(--brand);
 }

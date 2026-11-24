@@ -52,7 +52,7 @@ export function useFollowupClients(
         const res = await apiGet<{ clientIds: string[] }>(
           `/followup-clients/completions/${encodeURIComponent(selectedDateIso)}`
         );
-        setCompletedClientIds(res.clientIds);
+        setCompletedClientIds(Array.isArray(res?.clientIds) ? res.clientIds : []);
       } catch {
         setCompletedClientIds([]);
       }

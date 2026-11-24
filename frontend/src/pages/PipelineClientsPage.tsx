@@ -515,13 +515,17 @@ export function PipelineClientsPage() {
 
   return (
     <main className="pipeline-page">
-      <section className="panel pipeline-intro-panel">
-        <h2 className="pipeline-title">Client Pipeline</h2>
-        <p className="pipeline-subtitle">
-          Add a new client at any pipeline step, then move them forward as needed. Showing clients:{" "}
-          {total}
-        </p>
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Client Pipeline</h1>
+          <p className="page-subtitle">
+            Add a new client at any pipeline step, then move them forward as needed. Showing clients:{" "}
+            {total}
+          </p>
+        </div>
+      </header>
 
+      <section className="panel pipeline-intro-panel">
         <form onSubmit={(e) => void onSubmit(e)} className="pipeline-add-form">
           <input
             className="input"

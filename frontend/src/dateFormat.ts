@@ -34,12 +34,25 @@ export function formatIsoDateDdMmYyyy(iso: string): string {
   return `${d}/${mo}/${y}`;
 }
 
-/** Month label from any YYYY-MM-DD in that month: MM/YYYY */
+/** Month label from any YYYY-MM-DD in that month, e.g. November 2026 */
 export function formatIsoMonthYear(iso: string): string {
   const m = ISO_DATE.exec(iso.trim());
   if (!m) return iso;
   const [, y, mo] = m;
-  return `${mo}/${y}`;
+  const monthIdx = Number(mo) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return iso;
+  return `${MONTHS_EN[monthIdx]} ${y}`;
+}
+
+/** Short day label, e.g. 22 Nov — with the year when asked: 22 Nov 2026 */
+export function formatIsoDayShortMonth(iso: string, withYear = false): string {
+  const m = ISO_DATE.exec(iso.trim());
+  if (!m) return iso;
+  const [, y, mo, d] = m;
+  const monthIdx = Number(mo) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return iso;
+  const label = `${Number(d)} ${MONTHS_EN[monthIdx].slice(0, 3)}`;
+  return withYear ? `${label} ${y}` : label;
 }
 
 /** Parses DD/MM/YYYY (day first) -> YYYY-MM-DD, or null if invalid. */

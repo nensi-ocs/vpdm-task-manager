@@ -11,7 +11,7 @@ import {
   VPDM_TRACKS,
 } from "./vpdmCatalog";
 import "./TaskBoard.css";
-import { FileSpreadsheet, Printer, X } from "lucide-react";
+import { FileSpreadsheet, Plus, Printer, X } from "lucide-react";
 import { DdMmYyyyDateInput } from "./components/DdMmYyyyDateInput";
 import { Pagination } from "./components/Pagination";
 import {
@@ -95,11 +95,11 @@ function sectionTitle(freq: Frequency): string {
 }
 
 function sectionBadge(freq: Frequency): string {
-  if (freq === "daily") return "DAILY";
-  if (freq === "weekly") return "WEEKLY";
-  if (freq === "monthly") return "MONTHLY";
-  if (freq === "interval") return "EVERY X DAYS";
-  return "ONE-TIME";
+  if (freq === "daily") return "Daily";
+  if (freq === "weekly") return "Weekly";
+  if (freq === "monthly") return "Monthly";
+  if (freq === "interval") return "Every X days";
+  return "One-time";
 }
 
 function createModal(frequency: Frequency, defaultCategory: string): ModalState {
@@ -304,7 +304,7 @@ export function TaskBoard() {
   return (
     <div className="task-board">
       <header className="vpm-head">
-        <div className="vpm-title">VPDM Task Manager</div>
+        <h1 className="vpm-title">Manage Tasks</h1>
         <div className="vpm-controls">
           <DdMmYyyyDateInput
             value={selectedDateIso}
@@ -743,18 +743,19 @@ function TaskSection({
           {title} <span>{badge}</span>
         </h2>
         <button type="button" className="btn ghost sm" onClick={() => onAdd(frequency)}>
-          + Add
+          <Plus size={15} aria-hidden="true" />
+          Add
         </button>
       </div>
       {tasks.length === 0 ? (
-        <p className="empty-row">No {frequency} tasks for this date. Click "Add".</p>
+        <p className="empty-row">Nothing scheduled here for this date. Use Add to create a task.</p>
       ) : (
         <div className="task-table-wrap">
           <table className="task-table">
             <thead>
               <tr>
                 <th>#</th>
-                <th>✓</th>
+                <th><span className="sr-only">Done</span></th>
                 <th>Task</th>
                 <th>Scheduled</th>
                 <th>Completed on</th>

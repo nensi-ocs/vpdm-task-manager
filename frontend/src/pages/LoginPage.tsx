@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { toastApiError, toastSuccess } from "../toast";
+import { AuthAside } from "./AuthAside";
+import { PasswordInput } from "../components/PasswordInput";
 import "./auth-pages.css";
 
 export function LoginPage() {
@@ -34,13 +36,12 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
+      <div className="auth-shell">
+      <AuthAside />
       <div className="auth-card panel">
         <div className="auth-brand">
-          <span className="brand-mark" aria-hidden />
-          <div>
-            <h1 className="auth-title">Sign in</h1>
-            <p className="auth-sub">VPDM Task Manager</p>
-          </div>
+          <h1 className="auth-title">Sign in</h1>
+          <p className="auth-sub">Welcome back. Sign in to see today's tasks.</p>
         </div>
         <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
           {error ? (
@@ -61,13 +62,10 @@ export function LoginPage() {
           </label>
           <label className="field">
             <span className="label">Password</span>
-            <input
-              className="input"
-              type="password"
-              autoComplete="current-password"
+            <PasswordInput
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              onChange={setPassword}
+              autoComplete="current-password"
             />
           </label>
           <button type="submit" className="btn primary auth-submit" disabled={busy}>
@@ -77,6 +75,7 @@ export function LoginPage() {
         <p className="auth-footer">
           No account? <Link to="/register">Create one</Link>
         </p>
+      </div>
       </div>
     </div>
   );

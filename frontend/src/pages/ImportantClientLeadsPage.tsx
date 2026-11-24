@@ -281,11 +281,11 @@ export function ImportantClientLeadsPage() {
 
   return (
     <main className="icl-page">
-      <section className="panel icl-head">
+      <header className="page-head icl-head">
         <div className="icl-title-row">
           <div>
-            <h2 className="icl-title">Important Client Lead</h2>
-            <p className="icl-subtitle">
+            <h1 className="page-title">Important Client Lead</h1>
+            <p className="page-subtitle">
               Add and manage important client leads.
             </p>
           </div>
@@ -301,7 +301,7 @@ export function ImportantClientLeadsPage() {
           </button>
         </div>
         {error ? <p className="icl-error">{error}</p> : null}
-      </section>
+      </header>
 
       <section className="panel">
         {loading ? <p className="icl-empty">Loading…</p> : null}

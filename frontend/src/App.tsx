@@ -17,6 +17,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { ImportantClientLeadsPage } from "./pages/ImportantClientLeadsPage";
+import { ProfilePage } from "./pages/ProfilePage";
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
@@ -54,6 +55,7 @@ export default function App() {
               path="important-client-leads"
               element={<ImportantClientLeadsPage />}
             />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

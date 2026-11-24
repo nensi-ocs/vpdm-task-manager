@@ -8,7 +8,7 @@ import {
   weekdayNameInKolkataFromIso,
   completedOnKey,
 } from "../taskSchedule";
-import { formatIsoDateDdMmYyyy, formatIsoMonthYear } from "../dateFormat";
+import { formatIsoDayShortMonth, formatIsoMonthYear } from "../dateFormat";
 import "./calendar-page.css";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -194,7 +194,7 @@ function fmtMonthTitle(iso: string): string {
 
 function fmtWeekTitle(startIso: string): string {
   const endIso = addDaysIso(startIso, 6);
-  return `${formatIsoDateDdMmYyyy(startIso)} – ${formatIsoDateDdMmYyyy(endIso)}`;
+  return `${formatIsoDayShortMonth(startIso)} – ${formatIsoDayShortMonth(endIso, true)}`;
 }
 
 export function CalendarPage() {
@@ -350,6 +350,15 @@ export function CalendarPage() {
 
   return (
     <div className="calendar-page">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Calendar</h1>
+          <p className="page-subtitle">
+            Weekly, monthly and one-time tasks by due date.
+          </p>
+        </div>
+      </header>
+
       <header className="calendar-head">
         <div className="calendar-topbar">
           <div className="calendar-topbar-left">
@@ -398,6 +407,21 @@ export function CalendarPage() {
         </div>
       </header>
 
+      <ul className="calendar-legend" aria-label="Colour key">
+        <li>
+          <i className="lg-completed" aria-hidden="true" />
+          Completed
+        </li>
+        <li>
+          <i className="lg-missed" aria-hidden="true" />
+          Missed
+        </li>
+        <li>
+          <i className="lg-carry" aria-hidden="true" />
+          Carried forward
+        </li>
+      </ul>
+
       {error ? <div className="calendar-error">{error}</div> : null}
       {loading ? <div className="calendar-loading">Loading tasks…</div> : null}
 
@@ -426,7 +450,7 @@ export function CalendarPage() {
                   className={`calendar-date${view === "week" ? " calendar-date--full" : ""}`}
                 >
                   {view === "week"
-                    ? formatIsoDateDdMmYyyy(iso)
+                    ? formatIsoDayShortMonth(iso)
                     : d.getUTCDate()}
                 </div>
               </div>
