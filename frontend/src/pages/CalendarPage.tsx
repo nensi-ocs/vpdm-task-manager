@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Task } from "../types";
 import { useAuth } from "../auth/AuthContext";
 import { useTasks } from "../useTasks";
+import { useCategories } from "../useCategories";
 import {
   getNextOccurrenceExclusiveIso,
   getTaskCompletedIsoForSelectedWindow,
@@ -353,20 +354,28 @@ export function CalendarPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
+  // Every saved category is offered (as on the Categories page), plus any name that
+  // only exists on a task, so the list is complete even before a category has tasks.
+  const { categories: savedCategories } = useCategories(user?.id);
+
   const categoryOptions = useMemo(() => {
-    const names = new Set<string>();
+    const byKey = new Map<string, string>();
+    const add = (raw: string | null | undefined) => {
+      const name = (raw ?? "").trim();
+      if (name && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
+    };
+    for (const c of savedCategories) add(c.name);
     let hasUncategorised = false;
     for (const t of tasks) {
       if (t.frequency === "daily") continue;
-      const c = (t.category ?? "").trim();
-      if (c) names.add(c);
+      if ((t.category ?? "").trim()) add(t.category);
       else hasUncategorised = true;
     }
     return {
-      names: [...names].sort((a, b) => a.localeCompare(b)),
+      names: [...byKey.values()].sort((a, b) => a.localeCompare(b)),
       hasUncategorised,
     };
-  }, [tasks]);
+  }, [savedCategories, tasks]);
 
   const searchLower = search.trim().toLowerCase();
 
@@ -376,8 +385,12 @@ export function CalendarPage() {
     const map = new Map<string, CalendarCellEvent[]>();
     for (const [iso, arr] of eventsByIso) {
       const kept = arr.filter(({ task: t }) => {
-        const c = (t.category ?? "").trim();
-        if (categoryFilter === NO_CATEGORY ? c !== "" : categoryFilter !== "all" && c !== categoryFilter) {
+        const c = (t.category ?? "").trim().toLowerCase();
+        if (
+          categoryFilter === NO_CATEGORY
+            ? c !== ""
+            : categoryFilter !== "all" && c !== categoryFilter.toLowerCase()
+        ) {
           return false;
         }
         return !searchLower || t.title.toLowerCase().includes(searchLower);
