@@ -139,10 +139,6 @@
   padding-left: 2.1rem;
 }
 
-.calendar-filter-fields select.input {
-  min-width: 10.5rem;
-}
-
 .calendar-link-btn {
   border: 0;
   padding: 0;
@@ -581,8 +577,7 @@
   }
 
   .calendar-filter-fields > label,
-  .calendar-filter-search .input,
-  .calendar-filter-fields select.input {
+  .calendar-filter-search .input {
     flex: 1 1 100%;
     width: 100%;
   }

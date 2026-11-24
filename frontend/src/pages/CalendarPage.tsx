@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Task } from "../types";
 import { useAuth } from "../auth/AuthContext";
 import { useTasks } from "../useTasks";
-import { useCategories } from "../useCategories";
 import {
   getNextOccurrenceExclusiveIso,
   getTaskCompletedIsoForSelectedWindow,
@@ -44,8 +43,6 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "missed", label: "Missed" },
   { key: "carry", label: "Carried forward" },
 ];
-
-const NO_CATEGORY = "__none__";
 
 const MONTH_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -351,54 +348,22 @@ export function CalendarPage() {
 
   // ---- Filters: these only choose which events are shown; the schedule itself is untouched.
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-
-  // Every saved category is offered (as on the Categories page), plus any name that
-  // only exists on a task, so the list is complete even before a category has tasks.
-  const { categories: savedCategories } = useCategories(user?.id);
-
-  const categoryOptions = useMemo(() => {
-    const byKey = new Map<string, string>();
-    const add = (raw: string | null | undefined) => {
-      const name = (raw ?? "").trim();
-      if (name && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
-    };
-    for (const c of savedCategories) add(c.name);
-    let hasUncategorised = false;
-    for (const t of tasks) {
-      if (t.frequency === "daily") continue;
-      if ((t.category ?? "").trim()) add(t.category);
-      else hasUncategorised = true;
-    }
-    return {
-      names: [...byKey.values()].sort((a, b) => a.localeCompare(b)),
-      hasUncategorised,
-    };
-  }, [savedCategories, tasks]);
 
   const searchLower = search.trim().toLowerCase();
 
-  /** Events after the category and search filters, before the status filter. */
+  /** Events after the search filter, before the status filter. */
   const matchedByIso = useMemo(() => {
-    if (categoryFilter === "all" && !searchLower) return eventsByIso;
+    if (!searchLower) return eventsByIso;
     const map = new Map<string, CalendarCellEvent[]>();
     for (const [iso, arr] of eventsByIso) {
-      const kept = arr.filter(({ task: t }) => {
-        const c = (t.category ?? "").trim().toLowerCase();
-        if (
-          categoryFilter === NO_CATEGORY
-            ? c !== ""
-            : categoryFilter !== "all" && c !== categoryFilter.toLowerCase()
-        ) {
-          return false;
-        }
-        return !searchLower || t.title.toLowerCase().includes(searchLower);
-      });
+      const kept = arr.filter(({ task: t }) =>
+        t.title.toLowerCase().includes(searchLower)
+      );
       if (kept.length > 0) map.set(iso, kept);
     }
     return map;
-  }, [eventsByIso, categoryFilter, searchLower]);
+  }, [eventsByIso, searchLower]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<StatusFilter, number> = {
@@ -417,12 +382,10 @@ export function CalendarPage() {
     return counts;
   }, [matchedByIso]);
 
-  const filtersActive =
-    statusFilter !== "all" || categoryFilter !== "all" || searchLower !== "";
+  const filtersActive = statusFilter !== "all" || searchLower !== "";
 
   function clearFilters() {
     setStatusFilter("all");
-    setCategoryFilter("all");
     setSearch("");
   }
 
@@ -672,24 +635,6 @@ export function CalendarPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 autoComplete="off"
               />
-            </label>
-            <label>
-              <span className="sr-only">Category</span>
-              <select
-                className="input"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">All categories</option>
-                {categoryOptions.names.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-                {categoryOptions.hasUncategorised ? (
-                  <option value={NO_CATEGORY}>No category</option>
-                ) : null}
-              </select>
             </label>
             {filtersActive ? (
               <button type="button" className="btn ghost" onClick={clearFilters}>
