@@ -109,7 +109,7 @@
 
 .leads-table {
   table-layout: fixed;
-  min-width: 1320px;
+  min-width: 88rem;
 }
 
 .leads-table th,
@@ -126,7 +126,7 @@
   white-space: normal;
 }
 
-@media (min-width: 1500px) {
+@media (min-width: 2000px) {
   .leads-table {
     min-width: 0;
   }

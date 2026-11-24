@@ -114,7 +114,7 @@
 
 .pipeline-client-table {
   table-layout: fixed;
-  min-width: 860px;
+  min-width: 57rem;
 }
 
 /* Fixed layout + % widths keep row borders aligned and tame long client names */
@@ -245,7 +245,7 @@
 }
 
 .pipeline-board-table {
-  min-width: 440px;
+  min-width: 29rem;
   table-layout: fixed;
 }
 

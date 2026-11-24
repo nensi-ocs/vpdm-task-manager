@@ -136,7 +136,7 @@
 }
 
 .add-task-table {
-  min-width: 900px;
+  min-width: 60rem;
   table-layout: fixed;
 }
 
@@ -183,7 +183,7 @@
   width: 10%;
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1600px) {
   .add-task-table {
     min-width: 0;
   }

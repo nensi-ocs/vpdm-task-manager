@@ -164,7 +164,7 @@
   min-width: 0;
 }
 
-@media (min-width: 1640px) {
+@media (min-width: 2000px) {
   .dashboard-lists {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -192,7 +192,7 @@
 }
 
 .dashboard-table {
-  min-width: 720px;
+  min-width: 48rem;
 }
 
 .dashboard-table td:nth-child(1),

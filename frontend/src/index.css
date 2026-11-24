@@ -90,7 +90,7 @@
   --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
 
   font-family: var(--font-body);
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.5;
   font-weight: 400;
   color: var(--text);

@@ -74,7 +74,7 @@
 }
 
 .task-board .task-table {
-  min-width: 760px;
+  min-width: 50rem;
 }
 
 .task-board .task-table td:nth-child(1),
