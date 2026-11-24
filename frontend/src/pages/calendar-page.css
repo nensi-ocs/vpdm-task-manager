@@ -4,12 +4,12 @@
   overflow: hidden;
 }
 
+/* Three zones: jump to today, move through time (centred), choose the view */
 .calendar-topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap;
   padding: 0.85rem 1rem;
 }
 
@@ -153,22 +153,32 @@
 .calendar-topbar-left {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  justify-content: flex-start;
   min-width: 0;
 }
 
-.calendar-title {
-  margin: 0 0 0 0.25rem;
-  font-size: 1.15rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
 .calendar-topbar-right {
-  margin-left: auto;
   display: flex;
   justify-content: flex-end;
+  min-width: 0;
+}
+
+/* The month or week name sits between its own arrows, in a fixed-width slot
+   so the arrows do not move as the name changes length. */
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.calendar-title {
+  margin: 0;
+  min-width: 13.5rem;
+  text-align: center;
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .calendar-loading,
@@ -188,34 +198,58 @@
 }
 
 .cal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   border: 1px solid var(--border-strong);
   background: #fff;
   color: var(--text);
   border-radius: var(--radius-sm);
-  padding: 0 0.9rem;
+  padding: 0 0.95rem;
   min-height: 2.5rem;
   font-weight: 600;
   font-size: 0.9rem;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.cal-btn:hover {
+.cal-btn svg {
+  color: var(--accent);
+}
+
+.cal-btn:hover:not(:disabled) {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.cal-btn:disabled {
+  opacity: 1;
   background: var(--bg-subtle);
-  border-color: #b3b3b2;
+  border-color: var(--border);
+  color: var(--text-faint);
 }
 
-.cal-nav {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
+.cal-btn:disabled svg {
+  color: var(--text-faint);
 }
 
 .cal-icon {
   width: 2.5rem;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  height: 2.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.cal-icon:hover {
+  background: var(--accent-tint);
+  border-color: #d2e5ea;
+  color: var(--accent-hover);
 }
 
 .segmented {
@@ -230,21 +264,22 @@
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  padding: 0 1rem;
+  padding: 0 1.1rem;
   min-height: 2.15rem;
   border-radius: 7px;
   font-weight: 600;
   font-size: 0.88rem;
+  transition: background 0.15s, color 0.15s;
 }
 
-.segmented .seg:hover {
+.segmented .seg:hover:not(.on) {
   color: var(--text);
 }
 
 .segmented .seg.on {
-  background: #fff;
-  color: var(--accent-hover);
-  box-shadow: 0 1px 2px rgba(80, 80, 79, 0.14);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(80, 80, 79, 0.2);
 }
 
 .calendar-main {
@@ -409,6 +444,21 @@
 }
 
 @media (max-width: 720px) {
+  /* Phone: the month and its arrows get the full first row */
+  .calendar-topbar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .cal-nav {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-content: space-between;
+  }
+
+  .calendar-title {
+    min-width: 0;
+  }
+
   .calendar-filters {
     align-items: stretch;
     flex-direction: column;
@@ -421,7 +471,6 @@
     width: 100%;
   }
 
-  .calendar-topbar-right,
   .calendar-topbar-right .segmented {
     width: 100%;
   }

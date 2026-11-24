@@ -10,7 +10,7 @@ import {
 } from "../taskSchedule";
 import { formatIsoDayShortMonth, formatIsoMonthYear } from "../dateFormat";
 import "./calendar-page.css";
-import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { CalendarCheck, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 
 type ViewMode = "week" | "month";
 
@@ -422,6 +422,12 @@ export function CalendarPage() {
     setCursorIso(todayIso);
   }
 
+  // "Today" has nothing to do while today is already on screen.
+  const isCurrentPeriod =
+    view === "week"
+      ? todayIso >= fromIso && todayIso <= toIsoInclusive
+      : cursorIso.slice(0, 7) === todayIso.slice(0, 7);
+
   const month0 = isoToUtcMidday(cursorIso).getUTCMonth();
   const year = isoToUtcMidday(cursorIso).getUTCFullYear();
 
@@ -439,28 +445,38 @@ export function CalendarPage() {
       <section className="panel calendar-controls" aria-label="Calendar controls">
         <div className="calendar-topbar">
           <div className="calendar-topbar-left">
-            <button type="button" className="cal-btn cal-today" onClick={goToday}>
+            <button
+              type="button"
+              className="cal-btn cal-today"
+              onClick={goToday}
+              disabled={isCurrentPeriod}
+              title={isCurrentPeriod ? "You are viewing today" : "Go to today"}
+            >
+              <CalendarCheck size={16} aria-hidden="true" />
               Today
             </button>
-            <div className="cal-nav">
-              <button
-                type="button"
-                className="cal-btn cal-icon"
-                onClick={goPrev}
-                aria-label={view === "week" ? "Previous week" : "Previous month"}
-              >
-                <ChevronLeft size={18} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="cal-btn cal-icon"
-                onClick={goNext}
-                aria-label={view === "week" ? "Next week" : "Next month"}
-              >
-                <ChevronRight size={18} aria-hidden="true" />
-              </button>
-            </div>
-            <h2 className="calendar-title">{title}</h2>
+          </div>
+
+          <div className="cal-nav">
+            <button
+              type="button"
+              className="cal-icon"
+              onClick={goPrev}
+              aria-label={view === "week" ? "Previous week" : "Previous month"}
+            >
+              <ChevronLeft size={20} aria-hidden="true" />
+            </button>
+            <h2 className="calendar-title" aria-live="polite">
+              {title}
+            </h2>
+            <button
+              type="button"
+              className="cal-icon"
+              onClick={goNext}
+              aria-label={view === "week" ? "Next week" : "Next month"}
+            >
+              <ChevronRight size={20} aria-hidden="true" />
+            </button>
           </div>
 
           <div className="calendar-topbar-right">
