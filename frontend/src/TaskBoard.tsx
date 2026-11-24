@@ -472,6 +472,9 @@ export function TaskBoard() {
                   >
                     <h3>{track}</h3>
                     <ul>
+                      {rows.length === 0 ? (
+                        <li className="dashboard-tracker-empty">No clients</li>
+                      ) : null}
                       {rows.map((entry, idx) => {
                         const checked = completedClientIds.includes(entry.id);
                         return (
@@ -492,7 +495,7 @@ export function TaskBoard() {
                                 }
                               />
                               <span>{idx + 1}. {entry.client}</span>
-                              <em>({entry.owner})</em>
+                              {entry.owner ? <em>({entry.owner})</em> : null}
                             </label>
                           </li>
                         );
