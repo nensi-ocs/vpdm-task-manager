@@ -58,7 +58,7 @@
 
 .icl-table {
   table-layout: fixed;
-  min-width: 1320px;
+  min-width: 88rem;
 }
 
 .icl-table th,
@@ -80,7 +80,7 @@
   z-index: 1;
 }
 
-@media (min-width: 1600px) {
+@media (min-width: 2000px) {
   .icl-table {
     min-width: 0;
   }

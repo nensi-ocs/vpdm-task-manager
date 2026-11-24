@@ -401,7 +401,7 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  min-width: 700px;
+  min-width: 46rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
