@@ -1,5 +1,5 @@
 import { useCallback, useState, type DragEvent } from "react";
-import { useListOrder } from "./listOrderStore";
+import { placeGroup, sortBySavedOrder, useListOrder } from "./listOrderStore";
 import "./sortable-list.css";
 
 type DropOptions = {
@@ -18,13 +18,8 @@ export function useSortableList(listKey: string, userId: string | undefined) {
   const [target, setTarget] = useState<{ id: string; after: boolean } | null>(null);
 
   const sort = useCallback(
-    <T,>(items: readonly T[], getId: (item: T) => string): T[] => {
-      const position = (id: string) => {
-        const i = order.indexOf(id);
-        return i === -1 ? order.length : i;
-      };
-      return [...items].sort((a, b) => position(getId(a)) - position(getId(b)));
-    },
+    <T,>(items: readonly T[], getId: (item: T) => string): T[] =>
+      sortBySavedOrder(items, order, getId),
     [order]
   );
 
@@ -38,8 +33,7 @@ export function useSortableList(listKey: string, userId: string | undefined) {
     const ids = groupIds.filter((id) => id !== dragged.id);
     const targetIndex = target ? ids.indexOf(target.id) : -1;
     ids.splice(targetIndex === -1 ? ids.length : targetIndex + (target?.after ? 1 : 0), 0, dragged.id);
-    const next = [...order.filter((id) => !ids.includes(id)), ...ids];
-    setOrder(next);
+    setOrder(placeGroup(order, ids));
     if (dragged.group !== group) onMoveToGroup?.(dragged.id, group ?? "");
     clearDrag();
   }

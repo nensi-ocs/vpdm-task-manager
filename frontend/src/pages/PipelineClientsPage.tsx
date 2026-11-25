@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { useListOrder } from "../listOrderStore";
+import { placeGroup, useListOrder } from "../listOrderStore";
 import { usePipelineClients } from "../usePipelineClients";
 import { apiGet, apiSendJson } from "../api";
 import { toastApiError, toastSuccess } from "../toast";
@@ -320,13 +320,19 @@ export function PipelineClientsPage() {
     // Order rows by the stage position the user set on the board.
     const pos = (c: PipelineClient) =>
       boardPositionByStageKey.get(c.stage) ?? 999;
+    // Within a stage, keep the order the user set by dragging clients on the board.
+    const clientPos = (c: PipelineClient) => {
+      const i = clientOrder.indexOf(c.id);
+      return i === -1 ? clientOrder.length : i;
+    };
     list.sort(
       (a, b) =>
         pos(a) - pos(b) ||
+        clientPos(a) - clientPos(b) ||
         compareClientsByStepThenName(a, b)
     );
     return list;
-  }, [clients, queryTokens, boardPositionByStageKey]);
+  }, [clients, queryTokens, boardPositionByStageKey, clientOrder]);
 
   const clientTableTotalPages = Math.max(
     1,
@@ -474,8 +480,7 @@ export function PipelineClientsPage() {
     const insertAt =
       targetIndex === -1 ? ids.length : targetIndex + (dropTargetClient?.after ? 1 : 0);
     ids.splice(insertAt, 0, c.id);
-    const next = [...clientOrder.filter((id) => !ids.includes(id)), ...ids];
-    setClientOrder(next);
+    setClientOrder(placeGroup(clientOrder, ids));
   }
 
   async function moveClientToStage(c: PipelineClient, stageKey: string) {

@@ -150,3 +150,43 @@
     width: 100%;
   }
 }
+
+.profile-text-size {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: stretch;
+  padding: 1.25rem;
+}
+
+.profile-text-size .btn {
+  min-height: 2.6rem;
+}
+
+/* The − and + buttons: square, same height as the number box */
+.profile-text-size-step.btn {
+  width: 2.6rem;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.profile-text-size-input.input {
+  width: 4.5rem;
+  min-height: 2.6rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.profile-text-size-input::-webkit-outer-spin-button,
+.profile-text-size-input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.profile-text-size-reset.btn {
+  margin-left: 0.5rem;
+}

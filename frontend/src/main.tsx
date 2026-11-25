@@ -5,6 +5,9 @@ import "./index.css";
 import "./app-common.css";
 import App from "./App";
 import "react-toastify/dist/ReactToastify.css";
+import { applyTextSize, loadTextSize } from "./textSize";
+
+applyTextSize(loadTextSize());
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

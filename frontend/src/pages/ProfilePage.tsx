@@ -4,6 +4,14 @@ import { useAuth } from "../auth/AuthContext";
 import type { AuthUser } from "../auth/types";
 import { PasswordInput } from "../components/PasswordInput";
 import { toastApiError, toastSuccess } from "../toast";
+import {
+  DEFAULT_TEXT_SIZE,
+  MAX_TEXT_SIZE,
+  MIN_TEXT_SIZE,
+  clampTextSize,
+  loadTextSize,
+  saveTextSize,
+} from "../textSize";
 import "./profile-page.css";
 
 function initialsOf(first: string, last: string, email: string): string {
@@ -25,6 +33,16 @@ export function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
+  const [textSize, setTextSize] = useState<number>(loadTextSize);
+  /** What is typed in the box; applied once it is a valid size. */
+  const [textSizeInput, setTextSizeInput] = useState(() => String(loadTextSize()));
+
+  const changeTextSize = (px: number) => {
+    const size = clampTextSize(px);
+    setTextSize(size);
+    setTextSizeInput(String(size));
+    saveTextSize(size);
+  };
 
   const onChangePassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -171,6 +189,63 @@ export function ProfilePage() {
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="panel profile-card">
+        <div className="profile-section-head">
+          <h2>Text size</h2>
+          <p>
+            Set the text size for the whole app on this device, from {MIN_TEXT_SIZE} to{" "}
+            {MAX_TEXT_SIZE}. The default is {DEFAULT_TEXT_SIZE}.
+          </p>
+        </div>
+        <div className="profile-text-size">
+          <button
+            type="button"
+            className="btn ghost profile-text-size-step"
+            aria-label="Decrease text size"
+            disabled={textSize <= MIN_TEXT_SIZE}
+            onClick={() => changeTextSize(textSize - 1)}
+          >
+            −
+          </button>
+          <input
+            className="input profile-text-size-input"
+            type="number"
+            inputMode="numeric"
+            aria-label="Text size"
+            min={MIN_TEXT_SIZE}
+            max={MAX_TEXT_SIZE}
+            step={1}
+            value={textSizeInput}
+            onChange={(e) => {
+              setTextSizeInput(e.target.value);
+              const px = Number(e.target.value);
+              if (Number.isInteger(px) && px >= MIN_TEXT_SIZE && px <= MAX_TEXT_SIZE) {
+                setTextSize(px);
+                saveTextSize(px);
+              }
+            }}
+            onBlur={() => changeTextSize(Number(textSizeInput) || textSize)}
+          />
+          <button
+            type="button"
+            className="btn ghost profile-text-size-step"
+            aria-label="Increase text size"
+            disabled={textSize >= MAX_TEXT_SIZE}
+            onClick={() => changeTextSize(textSize + 1)}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="btn ghost profile-text-size-reset"
+            disabled={textSize === DEFAULT_TEXT_SIZE}
+            onClick={() => changeTextSize(DEFAULT_TEXT_SIZE)}
+          >
+            Reset
+          </button>
+        </div>
       </section>
 
       <section className="panel profile-card">
