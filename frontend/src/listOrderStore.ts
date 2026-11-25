@@ -107,6 +107,31 @@ function loadFromServer(userId: string) {
   loading.set(userId, request);
 }
 
+/**
+ * Applies a newly arranged group (the rows visible when the user dropped) to
+ * the full saved order. The group's rows take the slots they already occupied,
+ * so rows that are not visible right now (another date, a search filter, a
+ * different stage) keep their place instead of being pushed around.
+ */
+export function placeGroup(order: readonly string[], groupIds: readonly string[]): string[] {
+  const inGroup = new Set(groupIds);
+  const known = new Set(order);
+  const full = [...order, ...groupIds.filter((id) => !known.has(id))];
+  let next = 0;
+  return full.map((id) => (inGroup.has(id) ? groupIds[next++] : id));
+}
+
+/** Sorts rows by the saved order; rows never arranged keep their given order, at the end. */
+export function sortBySavedOrder<T>(
+  items: readonly T[],
+  order: readonly string[],
+  getId: (item: T) => string
+): T[] {
+  const position = new Map(order.map((id, i) => [id, i]));
+  const rank = (item: T) => position.get(getId(item)) ?? order.length;
+  return [...items].sort((a, b) => rank(a) - rank(b));
+}
+
 /** Forget loaded orders so the next login fetches fresh ones from the server. */
 export function resetListOrders() {
   cache.clear();

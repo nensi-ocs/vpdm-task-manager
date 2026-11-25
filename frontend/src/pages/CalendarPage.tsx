@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Task } from "../types";
 import { useAuth } from "../auth/AuthContext";
 import { useTasks } from "../useTasks";
+import { useListOrder } from "../listOrderStore";
 import {
   getNextOccurrenceExclusiveIso,
   getTaskCompletedIsoForSelectedWindow,
@@ -261,6 +262,7 @@ export function CalendarPage() {
 
   const { tasks, loading, error, completionDatesByTaskId, completedOnByTaskDate } =
     useTasks(user?.id, completionAnchorIso);
+  const [taskOrder] = useListOrder("tasks", user?.id);
 
   const eventsByIso = useMemo(() => {
     const map = new Map<string, CalendarCellEvent[]>();
@@ -331,17 +333,24 @@ export function CalendarPage() {
       }
     }
 
+    // Tasks the user arranged by dragging come first, in that order.
+    const taskPos = (t: Task) => {
+      const i = taskOrder.indexOf(String(t.id));
+      return i === -1 ? taskOrder.length : i;
+    };
     for (const [k, arr] of map) {
-      arr.sort((x, y) =>
-        x.task.priority === y.task.priority
-          ? x.task.title.localeCompare(y.task.title)
-          : x.task.priority.localeCompare(y.task.priority)
+      arr.sort(
+        (x, y) =>
+          taskPos(x.task) - taskPos(y.task) ||
+          (x.task.priority === y.task.priority
+            ? x.task.title.localeCompare(y.task.title)
+            : x.task.priority.localeCompare(y.task.priority))
       );
       map.set(k, arr);
     }
 
     return map;
-  }, [tasks, fromIso, toIsoInclusive, todayIso, completionDatesByTaskId, completedOnByTaskDate]);
+  }, [tasks, fromIso, toIsoInclusive, todayIso, completionDatesByTaskId, completedOnByTaskDate, taskOrder]);
 
   const title = view === "week" ? fmtWeekTitle(fromIso) : fmtMonthTitle(cursorIso);
 

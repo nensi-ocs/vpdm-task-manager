@@ -108,9 +108,35 @@ function minTaskSeriesStartIso(
   return min;
 }
 
+/**
+ * Position of a row in the user's saved drag-and-drop order, so the sheet lists
+ * rows the way the user arranged them in the app. Rows never arranged come last,
+ * in the default order.
+ */
+const userRank = new WeakMap<object, number>();
+const UNRANKED = Number.MAX_SAFE_INTEGER;
+
+function rankOf(row: object): number {
+  return userRank.get(row) ?? UNRANKED;
+}
+
+function setUserRanks<T extends object>(
+  rows: T[],
+  orderedIds: string[] | undefined,
+  getId: (row: T) => string
+): void {
+  if (!orderedIds || orderedIds.length === 0) return;
+  const position = new Map(orderedIds.map((id, i) => [id, i]));
+  for (const row of rows) {
+    const i = position.get(getId(row));
+    if (i !== undefined) userRank.set(row, i);
+  }
+}
+
 function sortForSection(tasks: TaskSeriesSchedule[]): TaskSeriesSchedule[] {
   return [...tasks].sort(
-    (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+    (a, b) =>
+      rankOf(a) - rankOf(b) || a.createdAt.getTime() - b.createdAt.getTime()
   );
 }
 
@@ -197,7 +223,9 @@ function clientsForTrack(
 
   return followups
     .filter((f) => normTrack(f.track) === want)
-    .sort((a, b) => a.clientName.localeCompare(b.clientName));
+    .sort(
+      (a, b) => rankOf(a) - rankOf(b) || a.clientName.localeCompare(b.clientName)
+    );
 }
 
 function applyThinBorder(cell: ExcelJS.Cell): void {
@@ -922,7 +950,9 @@ function writePipelineSectionRightOnly(
   }
 
   for (const [, arr] of byStage) {
-    arr.sort((a, b) => a.clientName.localeCompare(b.clientName));
+    arr.sort(
+      (a, b) => rankOf(a) - rankOf(b) || a.clientName.localeCompare(b.clientName)
+    );
   }
 
   ws.mergeCells(r, START_COL, r, END_COL);
@@ -1067,7 +1097,7 @@ export class DailySheetExportService {
 
     const day = new Date(`${isoDate}T12:00:00.000Z`);
 
-    const [categories, tasksRaw, followups, fuCompletions, pipelineRows] =
+    const [categories, tasksRaw, followups, fuCompletions, pipelineRows, listOrders] =
       await Promise.all([
         this.prisma.category.findMany({
           where: { userId },
@@ -1083,9 +1113,20 @@ export class DailySheetExportService {
           select: { followupClientId: true },
         }),
         this.pipelineClients.findAllForUser(userId),
+        this.prisma.userListOrder.findMany({ where: { userId } }),
       ]);
 
     const tasks = tasksRaw as unknown as TaskSeriesSchedule[];
+
+    const savedOrder = (listKey: string): string[] | undefined => {
+      const ids = listOrders.find((o) => o.listKey === listKey)?.itemIds;
+      return Array.isArray(ids)
+        ? ids.filter((v): v is string => typeof v === "string")
+        : undefined;
+    };
+    setUserRanks(tasks, savedOrder("tasks"), (t) => String(t.id));
+    setUserRanks(followups, savedOrder("followup-clients"), (f) => f.id);
+    setUserRanks(pipelineRows, savedOrder("pipeline-clients"), (c) => c.id);
 
     const fromDay = new Date(
       `${minTaskSeriesStartIso(tasks, isoDate)}T12:00:00.000Z`
